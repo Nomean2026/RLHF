@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DPO · 直接偏好优化 —— 少侠的新式心法</title>
+    <!-- MathJax 公式渲染 -->
+    <script>
+        MathJax = {
+            tex: {
+                inlineMath: [
+                    ['$', '$'],
+                    ['\\(', '\\)']
+                ],
+                displayMath: [
+                    ['$$', '$$'],
+                    ['\\[', '\\]']
+                ]
+            },
+            svg: {
+                fontCache: 'global'
+            }
+        };
+    </script>
+    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js">
+    </script>
+    <style>
+        :root {
+            --bg: #fffdf7;
+            --card-bg: #ffffff;
+            --text: #3a3226;
+            --accent-dpo: #6c5ce7;
+            --accent-dpo-light: #a29bfe;
+            --accent-good: #00b894;
+            --accent-bad: #e17055;
+            --border: #e0d5c7;
+            --shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+            --radius: 20px;
+            --code-bg: #fdf6e3;
+            --highlight: #ffeaa7;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            padding: 24px 16px 80px;
+            background-image: radial-gradient(circle at 20% 10%, #f3e5ff 0%, transparent 50%),
+                radial-gradient(circle at 80% 90%, #e8f5e9 0%, transparent 50%),
+                radial-gradient(circle at 50% 50%, #fce4ec 0%, transparent 40%);
+            background-attachment: fixed;
+        }
+
+        .container {
+            max-width: 950px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 28px;
+        }
+
+        /* 标题区域 */
+        .hero {
+            text-align: center;
+            padding: 40px 24px 20px;
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 2px dashed var(--accent-dpo);
+            position: relative;
+            overflow: hidden;
+        }
+        .hero::before {
+            content: '⚔️';
+            position: absolute;
+            top: -20px;
+            left: 20px;
+            font-size: 48px;
+            opacity: 0.6;
+            animation: float 3s ease-in-out infinite;
+        }
+        .hero::after {
+            content: '🎯';
+            position: absolute;
+            bottom: -15px;
+            right: 25px;
+            font-size: 44px;
+            opacity: 0.6;
+            animation: float 3s ease-in-out 1s infinite;
+        }
+        @keyframes float {
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-14px);
+            }
+        }
+        .hero h1 {
+            font-size: 2.6em;
+            font-weight: 800;
+            background: linear-gradient(135deg, #6c5ce7, #a29bfe, #6c5ce7);
+            background-size: 200% 200%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: gradientShift 4s ease infinite;
+            margin-bottom: 10px;
+        }
+        @keyframes gradientShift {
+            0%,
+            100% {
+                background-position: 0% 50%;
+            }
+            50% {
+                background-position: 100% 50%;
+            }
+        }
+        .hero .subtitle {
+            font-size: 1.15em;
+            color: #7a6e5d;
+            font-weight: 500;
+        }
+
+        /* 卡片 */
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 28px 30px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+        }
+        .card h2 {
+            font-size: 1.6em;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #2d1f5e;
+        }
+        .card h3 {
+            font-size: 1.25em;
+            margin: 18px 0 10px;
+            color: #4a3f6b;
+        }
+        .card p,
+        .card li {
+            color: #4a3f5c;
+        }
+
+        /* 角色卡片 */
+        .role-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 18px;
+            margin: 16px 0;
+        }
+        .role-card {
+            background: #fff;
+            border-radius: 18px;
+            padding: 22px 18px;
+            text-align: center;
+            box-shadow: var(--shadow);
+            border: 2px solid transparent;
+            transition: all 0.3s;
+        }
+        .role-card:hover {
+            transform: scale(1.03);
+            border-color: var(--accent-dpo-light);
+        }
+        .role-card .emoji {
+            font-size: 2.8em;
+            display: block;
+            margin-bottom: 8px;
+        }
+        .role-card .name {
+            font-weight: 800;
+            font-size: 1.2em;
+            margin-bottom: 4px;
+        }
+        .role-card .tag {
+            display: inline-block;
+            font-size: 0.75em;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-top: 6px;
+        }
+        .tag-frozen {
+            background: #e3f2fd;
+            color: #1565c0;
+        }
+        .tag-train {
+            background: #ede7f6;
+            color: #6c5ce7;
+            animation: pulse 1.8s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%,
+            100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.6;
+            }
+        }
+
+        /* 公式 */
+        .formula-box {
+            background: #faf9fe;
+            border-radius: 14px;
+            padding: 20px 24px;
+            margin: 14px 0;
+            overflow-x: auto;
+            border-left: 5px solid var(--accent-dpo);
+            font-size: 1.05em;
+        }
+        .formula-box.critic-formula {
+            border-left-color: #00b894;
+        }
+        .formula-note {
+            font-size: 0.9em;
+            color: #7a6b8b;
+            margin-top: 8px;
+            font-style: italic;
+        }
+
+        /* 代码块 */
+        .code-box {
+            background: #282c34;
+            border-radius: 14px;
+            padding: 20px 24px;
+            margin: 14px 0;
+            overflow-x: auto;
+            border-left: 5px solid var(--accent-dpo);
+            font-size: 0.9em;
+        }
+        .code-box pre {
+            margin: 0;
+            white-space: pre;
+            font-family: 'Fira Code', 'Cascadia Code', 'JetBrains Mono', 'Courier New', monospace;
+            line-height: 1.6;
+        }
+        .code-box code {
+            font-family: inherit;
+            color: #e6e6e6;
+        }
+        .code-comment {
+            color: #6a9955;
+        }
+        .code-keyword {
+            color: #c586c0;
+        }
+        .code-func {
+            color: #dcdcaa;
+        }
+        .code-var {
+            color: #9cdcfe;
+        }
+        .code-op {
+            color: #d4d4d4;
+        }
+
+        /* 表格 */
+        .styled-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 14px 0;
+            font-size: 0.9em;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+        .styled-table thead th {
+            background: var(--accent-dpo);
+            color: white;
+            padding: 12px 10px;
+            font-weight: 700;
+            text-align: center;
+        }
+        .styled-table tbody td {
+            padding: 10px;
+            text-align: center;
+            border-bottom: 1px solid #f0e8da;
+            background: #fffef9;
+        }
+        .styled-table tbody tr:hover td {
+            background: #f3efff;
+        }
+        .highlight-win {
+            background: #d4edda !important;
+            font-weight: 700;
+            color: #1b5e20;
+        }
+        .highlight-lose {
+            background: #f8d7da !important;
+            font-weight: 700;
+            color: #b71c1c;
+        }
+
+        .tip-box {
+            background: #f3efff;
+            border: 1px solid #d5c9ff;
+            border-radius: 14px;
+            padding: 16px 20px;
+            margin: 14px 0;
+            font-weight: 500;
+            color: #2d1f5e;
+        }
+        .tip-box strong {
+            color: #6c5ce7;
+        }
+
+        .step-list {
+            list-style: none;
+            counter-reset: step;
+        }
+        .step-list li {
+            counter-increment: step;
+            position: relative;
+            padding: 10px 0 10px 50px;
+            margin-bottom: 12px;
+            background: #fdfaf5;
+            border-radius: 12px;
+            font-weight: 500;
+        }
+        .step-list li::before {
+            content: counter(step);
+            position: absolute;
+            left: 10px;
+            top: 6px;
+            width: 30px;
+            height: 30px;
+            background: var(--accent-dpo);
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 30px;
+            font-weight: 800;
+            font-size: 0.85em;
+        }
+
+        @media (max-width: 600px) {
+            .hero h1 {
+                font-size: 1.8em;
+            }
+            .card {
+                padding: 18px 14px;
+            }
+            .role-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+
+        <!-- 标题 -->
+        <div class="hero">
+            <h1>🎯 DPO · 直接偏好优化</h1>
+            <p class="subtitle">扔掉评委和陪练，让少侠直接从“喜欢 vs 不喜欢”中悟道</p>
+        </div>
+
+        <!-- DPO 简介与对比 -->
+        <div class="card">
+            <h2>🧠 从 PPO 的“四大天王”到 DPO 的“二人转”</h2>
+            <p>还记得 RLHF-PPO 那四位吗？师爷（Reference）、少侠（Actor）、毒舌评委（Reward）、金牌陪练（Critic）。<br>
+                <strong>DPO 直接掀了桌子</strong>——它说：“评委和陪练太麻烦了，我只要<strong>少侠和师爷</strong>就够了！”</p>
+            <div class="role-grid">
+                <div class="role-card">
+                    <span class="emoji">⚔️</span>
+                    <div class="name">修炼少侠</div>
+                    <div style="font-size:0.85em;">策略模型 $\pi_\theta$<br>(我们要训练的)</div>
+                    <span class="tag tag-train">🔥 训练中</span>
+                </div>
+                <div class="role-card">
+                    <span class="emoji">📜</span>
+                    <div class="name">古板师爷</div>
+                    <div style="font-size:0.85em;">参考模型 $\pi_{\text{ref}}$<br>(SFT 冻住)</div>
+                    <span class="tag tag-frozen">❄️ 永久冻结</span>
+                </div>
+            </div>
+            <p style="margin-top:16px;"><strong>DPO 的核心洞察：</strong>既然我们最终要的是让模型知道“好的回答比坏的回答更受偏爱”，那为什么不<strong>直接把“偏好”这个信号灌进策略模型里</strong>，非要绕道训练一个奖励模型再强化学习呢？</p>
+            <div class="tip-box">
+                <strong>🍜 通俗比喻：</strong>PPO 像是请了一位美食评论家（Reward Model）给菜打分，厨师（Actor）再根据分数和陪练（Critic）的实时反馈调整菜谱。<br>
+                <strong>DPO 则像</strong>直接告诉厨师：“顾客觉得这道菜比那道菜好吃，你就照着这个方向改进，别管具体打多少分。”
+            </div>
+        </div>
+
+        <!-- DPO 核心思想 -->
+        <div class="card">
+            <h2>💡 DPO 核心思想：把偏好概率变成损失函数</h2>
+            <p>假设我们有一批人类偏好数据，每个样本包含一个提示 $x$，以及两个回答：</p>
+            <ul>
+                <li><strong>获胜回答</strong> $y_w$ （人类更喜欢）</li>
+                <li><strong>失败回答</strong> $y_l$ （人类不喜欢）</li>
+            </ul>
+            <p>DPO 直接从数学上推导出一个损失函数，让策略模型 $\pi_\theta$ 能<strong>直接利用这些偏好对进行优化</strong>，而不需要显式训练奖励模型。</p>
+
+            <h3>📐 第一步：Bradley-Terry 偏好模型</h3>
+            <p>在传统的 RLHF 中，人类偏好被建模为：</p>
+            <div class="formula-box">
+                $$ P(y_w \succ y_l \mid x) = \frac{\exp\big(r(x, y_w)\big)}{\exp\big(r(x, y_w)\big) + \exp\big(r(x, y_l)\big)} $$
+            </div>
+            <p>这里 $r(x,y)$ 是一个<strong>隐藏的奖励函数</strong>（也就是奖励模型）。<br>
+                这个公式的意思是：回答 $y_w$ 打败 $y_l$ 的概率，取决于两者奖励值的指数之比。</p>
+
+            <h3>🔁 第二步：建立奖励与策略的桥梁</h3>
+            <p>在 KL 约束的强化学习目标下，最优策略 $\pi^*$ 和奖励函数 $r$ 存在一个精确的映射关系：</p>
+            <div class="formula-box">
+                $$ r(x, y) = \beta \log \frac{\pi^*(y \mid x)}{\pi_{\text{ref}}(y \mid x)} + \beta \log Z(x) $$
+            </div>
+            <p>其中 $Z(x)$ 是配分函数（只依赖于 $x$ 的归一化常数），$\beta$ 是控制 KL 惩罚强度的超参数。<br>
+                <strong>这个公式太美妙了：</strong>它说“奖励”可以完全由<strong>策略模型与参考模型的概率比</strong>来表示！</p>
+
+            <h3>🎯 第三步：代入偏好模型，消掉奖励函数</h3>
+            <p>把上面的 $r$ 表达式代入 Bradley-Terry 模型，奇迹发生了——$Z(x)$ 被抵消掉：</p>
+            <div class="formula-box">
+                $$ P(y_w \succ y_l \mid x) = \frac{1}{1 + \exp\left( \beta \log \frac{\pi^*(y_l \mid x)}{\pi_{\text{ref}}(y_l \mid x)} - \beta \log \frac{\pi^*(y_w \mid x)}{\pi_{\text{ref}}(y_w \mid x)} \right)} $$
+            </div>
+            <p>现在，人类偏好概率<strong>只依赖于策略模型 $\pi^*$ 和参考模型 $\pi_{\text{ref}}$</strong>，不再需要奖励模型！</p>
+
+            <h3>📉 第四步：最大似然估计 —— DPO 损失函数</h3>
+            <p>我们希望策略模型 $\pi_\theta$ 能最大化人类偏好数据中获胜回答的似然。对上面的概率取负对数，就得到 <strong>DPO 损失</strong>：</p>
+            <div class="formula-box">
+                $$ \mathcal{L}_{\text{DPO}}(\pi_\theta; \pi_{\text{ref}}) = - \mathbb{E}_{(x, y_w, y_l) \sim \mathcal{D}} \left[ \log \sigma \left( \beta \log \frac{\pi_\theta(y_w \mid x)}{\pi_{\text{ref}}(y_w \mid x)} - \beta \log \frac{\pi_\theta(y_l \mid x)}{\pi_{\text{ref}}(y_l \mid x)} \right) \right] $$
+            </div>
+            <p>其中 $\sigma(\cdot)$ 是 sigmoid 函数。这个损失函数的直观含义是：</p>
+            <ul>
+                <li>让获胜回答的相对概率比 $\frac{\pi_\theta(y_w)}{\pi_{\text{ref}}(y_w)}$ <strong>尽可能大</strong></li>
+                <li>让失败回答的相对概率比 $\frac{\pi_\theta(y_l)}{\pi_{\text{ref}}(y_l)}$ <strong>尽可能小</strong></li>
+                <li>两者之间的差距越大，损失越小；模型就越能“分辨”好坏回答。</li>
+            </ul>
+        </div>
+
+        <!-- 生动例子 -->
+        <div class="card">
+            <h2>🍜 实例：夸夸机器人再就业（DPO 版）</h2>
+            <p>还是那个 prompt：<strong>“我刚剪了个超丑的发型，求安慰。”</strong></p>
+            <p>我们收集了一条人类偏好数据：</p>
+            <table class="styled-table">
+                <thead>
+                    <tr><th>角色</th><th>回答内容</th><th>人类偏好</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>🥇 获胜 $y_w$</td>
+                        <td style="text-align:left;">别担心，新发型很衬你！</td>
+                        <td class="highlight-win">✅ 更喜欢</td>
+                    </tr>
+                    <tr>
+                        <td>🥈 失败 $y_l$</td>
+                        <td style="text-align:left;">哈哈哈哈哈哈丑哭了</td>
+                        <td class="highlight-lose">❌ 不喜欢</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p>DPO 训练时，我们做如下计算：</p>
+            <ol>
+                <li>用当前策略 $\pi_\theta$ 和参考模型 $\pi_{\text{ref}}$ 分别计算两个回答的对数概率。</li>
+                <li>计算相对比率：$r_w = \beta \log \frac{\pi_\theta(y_w)}{\pi_{\text{ref}}(y_w)}$，$r_l = \beta \log \frac{\pi_\theta(y_l)}{\pi_{\text{ref}}(y_l)}$。</li>
+                <li>损失 = $-\log \sigma(r_w - r_l)$。</li>
+            </ol>
+            <p>如果模型已经能很好区分好坏（$r_w \gg r_l$），sigmoid 接近 1，损失接近 0；<br>
+                如果模型还糊涂（$r_w \approx r_l$ 甚至 $r_w < r_l$），损失就会很大，反向传播会<strong>拉升 $y_w$ 的概率，压低 $y_l$ 的概率</strong>。</p>
+            <div class="tip-box">
+                <strong>🧘 对比 PPO：</strong>PPO 需要先训练奖励模型给“别担心…”打 8.0 分，给“哈哈哈…”打 1.2 分，再通过 Critic 拆解成 token 级优势。<br>
+                <strong>DPO 则直接说：</strong>“反正人类更喜欢第一句，你看着办。”——简单粗暴，效果却出奇地好。
+            </div>
+        </div>
+
+        <!-- 算法流程 -->
+        <div class="card">
+            <h2>⚙️ DPO 训练流程（极简版）</h2>
+            <ol class="step-list">
+                <li><strong>准备数据：</strong>收集人类偏好对 $(x, y_w, y_l)$，例如同一个 prompt 下的两个回答，标注员选出更好的那个。</li>
+                <li><strong>初始化模型：</strong>策略模型 $\pi_\theta$ 从 SFT 模型热启动；参考模型 $\pi_{\text{ref}}$ 是 SFT 模型的冻结副本。</li>
+                <li><strong>计算对数概率：</strong>对于一个 batch 的偏好对，分别用 $\pi_\theta$ 和 $\pi_{\text{ref}}$ 计算 $\log \pi(y_w|x)$ 和 $\log \pi(y_l|x)$。</li>
+                <li><strong>构造 DPO 损失：</strong>
+                    $$ \mathcal{L} = -\frac{1}{N}\sum_{i=1}^N \log \sigma\left( \beta \log \frac{\pi_\theta(y_w^{(i)})}{\pi_{\text{ref}}(y_w^{(i)})} - \beta \log \frac{\pi_\theta(y_l^{(i)})}{\pi_{\text{ref}}(y_l^{(i)})} \right) $$
+                </li>
+                <li><strong>反向传播更新 $\pi_\theta$：</strong>优化器只更新策略模型参数，参考模型纹丝不动。</li>
+                <li><strong>重复迭代：</strong>直到模型在偏好数据上表现稳定，生成的回答更符合人类喜好。</li>
+            </ol>
+            <p style="margin-top:12px;"><strong>注意：</strong>整个过程没有奖励模型，没有 Critic，没有强化学习的“采样-评估-更新”循环。DPO 就是一个<strong>监督式的排序损失</strong>，训练速度更快，超参数更少。</p>
+        </div>
+
+        <!-- 伪代码 -->
+        <div class="card">
+            <h2>💻 伪代码：DPO 训练一步</h2>
+            <div class="code-box">
+                <pre><code><span class="code-comment"># 假设已有：policy_model (π_θ), ref_model (冻结的 SFT)</span>
+<span class="code-comment"># 数据 batch: prompts, winning_responses, losing_responses</span>
+
+<span class="code-comment"># 1. 计算对数概率</span>
+<span class="code-var">logp_w_policy</span> <span class="code-op">=</span> <span class="code-var">policy_model</span>.<span class="code-func">log_prob</span>(<span class="code-var">prompts</span>, <span class="code-var">winning_responses</span>)
+<span class="code-var">logp_l_policy</span> <span class="code-op">=</span> <span class="code-var">policy_model</span>.<span class="code-func">log_prob</span>(<span class="code-var">prompts</span>, <span class="code-var">losing_responses</span>)
+<span class="code-var">logp_w_ref</span>    <span class="code-op">=</span> <span class="code-var">ref_model</span>.<span class="code-func">log_prob</span>(<span class="code-var">prompts</span>, <span class="code-var">winning_responses</span>)
+<span class="code-var">logp_l_ref</span>    <span class="code-op">=</span> <span class="code-var">ref_model</span>.<span class="code-func">log_prob</span>(<span class="code-var">prompts</span>, <span class="code-var">losing_responses</span>)
+
+<span class="code-comment"># 2. 计算相对比率</span>
+<span class="code-var">ratio_w</span> <span class="code-op">=</span> <span class="code-var">logp_w_policy</span> <span class="code-op">-</span> <span class="code-var">logp_w_ref</span>
+<span class="code-var">ratio_l</span> <span class="code-op">=</span> <span class="code-var">logp_l_policy</span> <span class="code-op">-</span> <span class="code-var">logp_l_ref</span>
+
+<span class="code-comment"># 3. DPO 损失</span>
+<span class="code-var">loss</span> <span class="code-op">=</span> <span class="code-op">-</span><span class="code-var">F</span>.<span class="code-func">logsigmoid</span>(<span class="code-var">beta</span> <span class="code-op">*</span> (<span class="code-var">ratio_w</span> <span class="code-op">-</span> <span class="code-var">ratio_l</span>)).<span class="code-func">mean</span>()
+
+<span class="code-comment"># 4. 反向传播</span>
+<span class="code-var">optimizer</span>.<span class="code-func">zero_grad</span>()
+<span class="code-var">loss</span>.<span class="code-func">backward</span>()
+<span class="code-var">optimizer</span>.<span class="code-func">step</span>()</code></pre>
+            </div>
+            <p class="formula-note">看，连 Critic 的影子都没有！代码量比 PPO 少了一个量级。</p>
+        </div>
+
+        <!-- DPO vs PPO 对比表 -->
+        <div class="card">
+            <h2>⚖️ DPO vs RLHF-PPO 终极对比</h2>
+            <table class="styled-table">
+                <thead>
+                    <tr><th>维度</th><th>RLHF-PPO</th><th>DPO</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>模型数量</td><td>4 个（Actor, Ref, Reward, Critic）</td><td>2 个（Policy, Ref）</td></tr>
+                    <tr><td>奖励信号</td><td>需要训练独立的 Reward Model</td><td>直接从偏好对中隐式学习</td></tr>
+                    <tr><td>训练方式</td><td>强化学习（采样 + 优势估计）</td><td>监督式排序损失</td></tr>
+                    <tr><td>计算开销</td><td>高（需在线生成、Critic 更新）</td><td>低（纯离线计算对数概率）</td></tr>
+                    <tr><td>稳定性</td><td>需要调 KL 系数、clip 范围等</td><td>超参数少，训练更稳定</td></tr>
+                    <tr><td>适用场景</td><td>需要精细控制、在线交互</td><td>有现成偏好数据、追求简洁</td></tr>
+                </tbody>
+            </table>
+            <p style="margin-top:12px;">DPO 的出现让对齐训练从“重型武器”变成了“轻量飞镖”——<strong>快、准、稳</strong>。当然，如果偏好数据质量不高，DPO 也可能学偏，但这就是另一个故事了。</p>
+        </div>
+
+        <!-- 终极口诀 -->
+        <div class="card" style="border:3px solid var(--accent-dpo); background: linear-gradient(135deg, #f3efff, #fffef9);">
+            <h2>🧘 DPO 终极心法口诀</h2>
+            <ol style="font-size:1.05em; line-height:2;">
+                <li><strong>SFT 模型</strong> → 冻一份当 <strong>Reference（师爷）</strong></li>
+                <li>收集 <strong>人类偏好对</strong> $(y_w, y_l)$，不需要打分，只需要“更喜欢哪个”</li>
+                <li><strong>Policy（少侠）</strong> 从 SFT 热启动，<strong>Reference 冻住</strong></li>
+                <li>计算两个回答的 <strong>相对概率比</strong>：$\beta \log \frac{\pi_\theta}{\pi_{\text{ref}}}$</li>
+                <li>损失函数：$-\log \sigma(\text{获胜比率} - \text{失败比率})$</li>
+                <li>反向传播，只更新 <strong>Policy</strong></li>
+                <li>循环迭代，直到少侠本能地选择人类喜欢的回答 🎉</li>
+            </ol>
+            <p style="text-align:center; margin-top:14px; font-weight:700; color: var(--accent-dpo);">
+                DPO = 偏好数据 + 对数概率减法 + Sigmoid → 少侠悟道！
+            </p>
+        </div>
+
+        <!-- 页脚 -->
+        <div style="text-align:center; color:#b0a090; font-size:0.85em; padding:10px;">
+            🎯 DPO：让对齐像做填空题一样简单。下次见到偏好数据，直接掏出这个损失函数，少侠自会心领神会。
+        </div>
+    </div>
+</body>
+</html>

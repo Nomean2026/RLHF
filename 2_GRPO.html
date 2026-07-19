@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>GRPO 训练代码讲解 · 组内比武</title>
+    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: #fafaf8;
+            color: #333;
+            line-height: 1.8;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+        }
+        .header h1 { font-size: 2.2em; margin-bottom: 10px; }
+        .header p { font-size: 1.1em; opacity: 0.9; }
+        .container {
+            display: flex;
+            gap: 0;
+            max-width: 1600px;
+            margin: 0 auto;
+            min-height: calc(100vh - 140px);
+        }
+        .left-panel {
+            flex: 0 0 48%;
+            background: #1e1e2e;
+            color: #cdd6f4;
+            padding: 0;
+            overflow-y: auto;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+        }
+        .left-panel h3 {
+            background: #313244;
+            padding: 16px 20px;
+            font-size: 1em;
+            color: #cba6f7;
+            border-bottom: 1px solid #45475a;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .code-block {
+            padding: 0;
+        }
+        .code-block pre {
+            background: #1e1e2e;
+            color: #cdd6f4;
+            padding: 16px 20px;
+            overflow-x: auto;
+            font-size: 0.82em;
+            line-height: 1.6;
+            font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+            margin: 0;
+            border-radius: 0;
+            border-bottom: 1px solid #313244;
+        }
+        .code-block pre code { font-family: inherit; }
+        .right-panel {
+            flex: 1;
+            background: #ffffff;
+            padding: 30px 36px;
+            overflow-y: auto;
+            border-left: 1px solid #e8e8e8;
+        }
+        /* 语法高亮 */
+        .code-comment { color: #6a9955; font-style: italic; }
+        .code-keyword { color: #c586c0; font-weight: 600; }
+        .code-func { color: #dcdcaa; }
+        .code-var { color: #9cdcfe; }
+        .code-op { color: #d4d4d4; }
+        .code-num { color: #b5cea8; }
+        .code-str { color: #ce9178; }
+        .code-param { color: #9cdcfe; }
+        .code-class { color: #4ec9b0; }
+        .code-decorator { color: #dcdcaa; }
+        /* 讲解区样式 */
+        .section {
+            margin-bottom: 36px;
+            padding-bottom: 24px;
+            border-bottom: 2px dashed #eee;
+        }
+        .section:last-child { border-bottom: none; }
+        .section h2 {
+            font-size: 1.5em;
+            color: #667eea;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .section h2 .emoji { font-size: 1.2em; }
+        .section h3 {
+            font-size: 1.15em;
+            color: #555;
+            margin: 16px 0 8px 0;
+        }
+        .section p { margin-bottom: 10px; }
+        .tip-box {
+            background: #f0f7ff;
+            border-left: 4px solid #667eea;
+            padding: 14px 18px;
+            margin: 14px 0;
+            border-radius: 0 8px 8px 0;
+            font-size: 0.95em;
+        }
+        .tip-box strong { color: #667eea; }
+        .formula-box {
+            background: #f8f8ff;
+            border: 1px solid #e0e0e0;
+            border-left: 4px solid #764ba2;
+            padding: 16px 20px;
+            margin: 16px 0;
+            border-radius: 0 8px 8px 0;
+            overflow-x: auto;
+            text-align: center;
+        }
+        .step-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 32px;
+            font-weight: bold;
+            font-size: 0.9em;
+            margin-right: 8px;
+            flex-shrink: 0;
+        }
+        .vs-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 14px 0;
+            font-size: 0.92em;
+        }
+        .vs-table th {
+            background: #667eea;
+            color: white;
+            padding: 10px 14px;
+            text-align: left;
+        }
+        .vs-table td {
+            padding: 10px 14px;
+            border-bottom: 1px solid #eee;
+        }
+        .vs-table tr:nth-child(even) { background: #f8f9ff; }
+        ul { padding-left: 20px; margin: 8px 0; }
+        li { margin-bottom: 4px; }
+        code {
+            background: #f0f0f5;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+            font-size: 0.88em;
+            color: #c586c0;
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>GRPO：组内比武，谁行谁上</h1>
+    <p>没有 Critic 的强化学习 —— 用同组回答的相对排名代替绝对价值估计</p>
+</div>
+
+<div class="container">
+    <!-- ===== 左侧：完整代码 ===== -->
+    <div class="left-panel">
+        <h3>📄 grpo_luxun.py</h3>
+
+        <!-- 第0块：导入 -->
+        <div class="code-block">
+            <pre><code><span class="code-comment"># grpo_luxun.py - GRPO 训练</span>
+<span class="code-comment"># 组内相对策略优化：对同一 prompt 采样多个回答，组内标准化奖励，无需 Critic。</span>
+
+<span class="code-keyword">import</span> torch
+<span class="code-keyword">import</span> torch.nn.functional <span class="code-keyword">as</span> F
+<span class="code-keyword">import</span> numpy <span class="code-keyword">as</span> np
+<span class="code-keyword">import</span> os
+<span class="code-keyword">from</span> tokenizers <span class="code-keyword">import</span> <span class="code-class">Tokenizer</span></code></pre>
+        </div>
+
+        <!-- 第1块：模型定义 -->
+        <div class="code-block">
+            <pre><code><span class="code-comment"># 模型定义（同前）</span>
+<span class="code-keyword">class</span> <span class="code-class">RMSNorm</span>(nn.<span class="code-class">Module</span>): ...
+<span class="code-keyword">class</span> <span class="code-class">FullTransformer</span>(nn.<span class="code-class">Module</span>): ...</code></pre>
+        </div>
+
+        <!-- 第2块：函数签名与超参 -->
+        <div class="code-block">
+            <pre><code><span class="code-keyword">def</span> <span class="code-func">grpo_train</span>():
+    batch_size <span class="code-op">=</span> <span class="code-num">1</span>    <span class="code-comment"># 每次处理一个 prompt</span>
+    G <span class="code-op">=</span> <span class="code-num">4</span>             <span class="code-comment"># 每组回答数量（比武的参赛人数）</span>
+    epochs <span class="code-op">=</span> <span class="code-num">3</span>
+    lr <span class="code-op">=</span> <span class="code-num">1e-6</span>
+    clip_eps <span class="code-op">=</span> <span class="code-num">0.2</span>   <span class="code-comment"># PPO 裁剪阈值</span>
+    kl_coef <span class="code-op">=</span> <span class="code-num">0.05</span>   <span class="code-comment"># KL 散度系数（防止跑太远）</span>
+    device <span class="code-op">=</span> <span class="code-str">'cuda'</span> <span class="code-keyword">if</span> torch.cuda.<span class="code-func">is_available</span>() <span class="code-keyword">else</span> <span class="code-str">'cpu'</span>
+    max_len <span class="code-op">=</span> <span class="code-num">256</span>
+
+    tokenizer <span class="code-op">=</span> <span class="code-class">Tokenizer</span>.<span class="code-func">from_file</span>(<span class="code-str">"tokenizer_luxun/tokenizer.json"</span>)
+    vocab_size <span class="code-op">=</span> <span class="code-func">len</span>(tokenizer.<span class="code-func">get_vocab</span>())
+    eos_id <span class="code-op">=</span> tokenizer.<span class="code-func">token_to_id</span>(<span class="code-str">"&lt;|eos|&gt;"</span>)</code></pre>
+        </div>
+
+        <!-- 第3块：加载模型 -->
+        <div class="code-block">
+            <pre><code>    <span class="code-comment"># 加载 SFT 模型作为 Policy，Reference 冻结</span>
+    policy <span class="code-op">=</span> <span class="code-class">FullTransformer</span>(vocab_size, d_model<span class="code-op">=</span><span class="code-num">64</span>, n_layers<span class="code-op">=</span><span class="code-num">3</span>, n_heads<span class="code-op">=</span><span class="code-num">4</span>).<span class="code-func">to</span>(device)
+    policy.<span class="code-func">load_state_dict</span>(torch.<span class="code-func">load</span>(<span class="code-str">"checkpoints_sft/sft_model.pth"</span>, map_location<span class="code-op">=</span>device))
+
+    <span class="code-comment"># Reference 模型：冻结的"原版"，用来算 KL 散度</span>
+    ref_model <span class="code-op">=</span> <span class="code-class">FullTransformer</span>(vocab_size, d_model<span class="code-op">=</span><span class="code-num">64</span>, n_layers<span class="code-op">=</span><span class="code-num">3</span>, n_heads<span class="code-op">=</span><span class="code-num">4</span>).<span class="code-func">to</span>(device)
+    ref_model.<span class="code-func">load_state_dict</span>(torch.<span class="code-func">load</span>(<span class="code-str">"checkpoints_sft/reference_model.pth"</span>, map_location<span class="code-op">=</span>device))
+    <span class="code-keyword">for</span> param <span class="code-keyword">in</span> ref_model.parameters():
+        param.requires_grad <span class="code-op">=</span> <span class="code-num">False</span>
+
+    optimizer <span class="code-op">=</span> torch.optim.<span class="code-class">AdamW</span>(policy.parameters(), lr<span class="code-op">=</span>lr)
+
+    <span class="code-comment"># 奖励模型（轻量级，只打分）</span>
+    reward_model <span class="code-op">=</span> <span class="code-class">RewardModel</span>(<span class="code-class">FullTransformer</span>(vocab_size, d_model<span class="code-op">=</span><span class="code-num">64</span>, n_layers<span class="code-op">=</span><span class="code-num">3</span>, n_heads<span class="code-op">=</span><span class="code-num">4</span>)).<span class="code-func">to</span>(device)</code></pre>
+        </div>
+
+        <!-- 第4块：训练循环开始 -->
+        <div class="code-block">
+            <pre><code>    prompts <span class="code-op">=</span> [<span class="code-str">"&lt;|user|&gt;你好&lt;|assistant|&gt;"</span>, <span class="code-str">"&lt;|user|&gt;今天天气不错&lt;|assistant|&gt;"</span>]
+
+    policy.<span class="code-func">train</span>()
+    <span class="code-keyword">for</span> epoch <span class="code-keyword">in</span> <span class="code-func">range</span>(epochs):
+        <span class="code-keyword">for</span> prompt <span class="code-keyword">in</span> prompts:</code></pre>
+        </div>
+
+        <!-- 第5块：采样 G 个回答 -->
+        <div class="code-block">
+            <pre><code>            <span class="code-comment"># ===== 第一步：采样 G 个回答 =====</span>
+            responses <span class="code-op">=</span> []
+            all_log_probs <span class="code-op">=</span> []  <span class="code-comment"># 旧策略下的 log_probs</span>
+            <span class="code-keyword">for</span> _ <span class="code-keyword">in</span> <span class="code-func">range</span>(G):
+                input_ids <span class="code-op">=</span> tokenizer.<span class="code-func">encode</span>(prompt).ids
+                input_tensor <span class="code-op">=</span> torch.<span class="code-func">tensor</span>([input_ids], device<span class="code-op">=</span>device)
+                generated <span class="code-op">=</span> []
+                log_probs <span class="code-op">=</span> []
+                <span class="code-keyword">for</span> step <span class="code-keyword">in</span> <span class="code-func">range</span>(<span class="code-num">50</span>):
+                    logits <span class="code-op">=</span> <span class="code-func">policy</span>(input_tensor)[:, <span class="code-num">-1</span>, :]
+                    probs <span class="code-op">=</span> F.<span class="code-func">softmax</span>(logits, dim<span class="code-op">=-</span><span class="code-num">1</span>)
+                    next_token <span class="code-op">=</span> torch.<span class="code-func">multinomial</span>(probs, num_samples<span class="code-op">=</span><span class="code-num">1</span>)
+                    generated.<span class="code-func">append</span>(next_token.<span class="code-func">item</span>())
+                    log_prob <span class="code-op">=</span> torch.<span class="code-func">log</span>(probs[<span class="code-num">0</span>, next_token.<span class="code-func">item</span>()])
+                    log_probs.<span class="code-func">append</span>(log_prob)
+                    input_tensor <span class="code-op">=</span> torch.<span class="code-func">cat</span>(
+                        [input_tensor, next_token.<span class="code-func">unsqueeze</span>(<span class="code-num">0</span>)], dim<span class="code-op">=</span><span class="code-num">1</span>
+                    )
+                    <span class="code-keyword">if</span> next_token.<span class="code-func">item</span>() <span class="code-op">==</span> eos_id:
+                        <span class="code-keyword">break</span>
+                responses.<span class="code-func">append</span>(generated)
+                all_log_probs.<span class="code-func">append</span>(log_probs)</code></pre>
+        </div>
+
+        <!-- 第6块：计算奖励 -->
+        <div class="code-block">
+            <pre><code>            <span class="code-comment"># ===== 第二步：奖励模型打分 =====</span>
+            rewards <span class="code-op">=</span> []
+            <span class="code-keyword">for</span> gen <span class="code-keyword">in</span> responses:
+                full_ids <span class="code-op">=</span> torch.<span class="code-func">tensor</span>(
+                    [tokenizer.<span class="code-func">encode</span>(prompt).ids <span class="code-op">+</span> gen], device<span class="code-op">=</span>device
+                )
+                r <span class="code-op">=</span> <span class="code-func">reward_model</span>(full_ids).<span class="code-func">item</span>()
+                rewards.<span class="code-func">append</span>(r)</code></pre>
+        </div>
+
+        <!-- 第7块：组内标准化 -->
+        <div class="code-block">
+            <pre><code>            <span class="code-comment"># ===== 第三步：组内标准化得优势（代替 Critic） =====</span>
+            rewards_t <span class="code-op">=</span> torch.<span class="code-func">tensor</span>(rewards, device<span class="code-op">=</span>device)
+            mean_r <span class="code-op">=</span> rewards_t.<span class="code-func">mean</span>()
+            std_r <span class="code-op">=</span> rewards_t.<span class="code-func">std</span>() <span class="code-op">+</span> <span class="code-num">1e-8</span>
+            advantages <span class="code-op">=</span> (rewards_t <span class="code-op">-</span> mean_r) <span class="code-op">/</span> std_r</code></pre>
+        </div>
+
+        <!-- 第8块：GRPO 损失计算 -->
+        <div class="code-block">
+            <pre><code>            <span class="code-comment"># ===== 第四步：计算 GRPO 损失 =====</span>
+            total_loss <span class="code-op">=</span> <span class="code-num">0</span>
+            total_tokens <span class="code-op">=</span> <span class="code-num">0</span>
+            <span class="code-keyword">for</span> i <span class="code-keyword">in</span> <span class="code-func">range</span>(G):
+                advantage <span class="code-op">=</span> advantages[i]
+                <span class="code-keyword">if</span> advantage <span class="code-op">==</span> <span class="code-num">0</span>:
+                    <span class="code-keyword">continue</span>
+
+                <span class="code-comment"># 重新计算当前策略下的 log_prob</span>
+                gen_ids <span class="code-op">=</span> responses[i]
+                old_log_probs <span class="code-op">=</span> all_log_probs[i]
+                inp <span class="code-op">=</span> torch.<span class="code-func">tensor</span>(
+                    [tokenizer.<span class="code-func">encode</span>(prompt).ids], device<span class="code-op">=</span>device
+                )
+                curr_log_probs <span class="code-op">=</span> []
+                <span class="code-keyword">for</span> token_id <span class="code-keyword">in</span> gen_ids:
+                    logits <span class="code-op">=</span> <span class="code-func">policy</span>(inp)[:, <span class="code-num">-1</span>, :]
+                    probs <span class="code-op">=</span> F.<span class="code-func">softmax</span>(logits, dim<span class="code-op">=-</span><span class="code-num">1</span>)
+                    curr_log_prob <span class="code-op">=</span> torch.<span class="code-func">log</span>(probs[<span class="code-num">0</span>, token_id])
+                    curr_log_probs.<span class="code-func">append</span>(curr_log_prob)
+                    inp <span class="code-op">=</span> torch.<span class="code-func">cat</span>(
+                        [inp, torch.<span class="code-func">tensor</span>([[token_id]], device<span class="code-op">=</span>device)],
+                        dim<span class="code-op">=</span><span class="code-num">1</span>
+                    )
+
+                <span class="code-comment"># 列表转 tensor</span>
+                curr_log_probs <span class="code-op">=</span> torch.<span class="code-func">stack</span>(curr_log_probs)
+                old_log_probs <span class="code-op">=</span> torch.<span class="code-func">stack</span>(old_log_probs).<span class="code-func">detach</span>()
+
+                <span class="code-comment"># 重要性采样比率</span>
+                ratio <span class="code-op">=</span> torch.<span class="code-func">exp</span>(curr_log_probs <span class="code-op">-</span> old_log_probs)
+
+                <span class="code-comment"># PPO 风格的裁剪损失</span>
+                surr1 <span class="code-op">=</span> ratio <span class="code-op">*</span> advantage
+                surr2 <span class="code-op">=</span> torch.<span class="code-func">clamp</span>(
+                    ratio, <span class="code-num">1</span> <span class="code-op">-</span> clip_eps, <span class="code-num">1</span> <span class="code-op">+</span> clip_eps
+                ) <span class="code-op">*</span> advantage
+                loss_i <span class="code-op">=</span> <span class="code-op">-</span>torch.<span class="code-func">min</span>(surr1, surr2).<span class="code-func">sum</span>()
+                total_loss <span class="code-op">+=</span> loss_i
+                total_tokens <span class="code-op">+=</span> <span class="code-func">len</span>(gen_ids)</code></pre>
+        </div>
+
+        <!-- 第9块：反向传播与保存 -->
+        <div class="code-block">
+            <pre><code>            <span class="code-comment"># ===== 第五步：反向传播，更新策略 =====</span>
+            <span class="code-keyword">if</span> total_tokens <span class="code-op">&gt;</span> <span class="code-num">0</span>:
+                loss <span class="code-op">=</span> total_loss <span class="code-op">/</span> total_tokens
+                optimizer.<span class="code-func">zero_grad</span>()
+                loss.<span class="code-func">backward</span>()
+                optimizer.<span class="code-func">step</span>()
+
+        <span class="code-func">print</span>(<span class="code-str">f"GRPO epoch </span><span class="code-var">{epoch+1}</span><span class="code-str"> 完成"</span>)
+
+    torch.<span class="code-func">save</span>(policy.<span class="code-func">state_dict</span>(), <span class="code-str">"grpo_policy.pth"</span>)
+    <span class="code-func">print</span>(<span class="code-str">"GRPO 训练完成！"</span>)
+
+<span class="code-keyword">if</span> __name__ <span class="code-op">==</span> <span class="code-str">"__main__"</span>:
+    <span class="code-func">grpo_train</span>()</code></pre>
+        </div>
+    </div>
+
+    <!-- ===== 右侧：讲解 ===== -->
+    <div class="right-panel">
+
+        <!-- 一、GRPO 是什么 -->
+        <div class="section" id="sec1">
+            <h2><span class="emoji">💡</span> 一、GRPO 是什么？为什么不需要 Critic？</h2>
+            <p><strong>GRPO（Group Relative Policy Optimization）</strong> 是 DeepSeek-Math 论文提出的一种 RL 训练方法。它的核心思想可以一句话概括：</p>
+            <div class="tip-box">
+                <strong>🎭 核心创新：</strong> 不再训练一个和 Actor 一样大的 Critic 网络来估计"状态价值"，而是对同一个 prompt 采样一组回答，用组内的<strong>相对排名</strong>来计算优势。
+            </div>
+            <p>传统 PPO 需要三个网络：Actor（策略）、Critic（价值）、Reward（奖励）。其中 Critic 和 Actor 一样大，训练起来又贵又不稳定。</p>
+            <p>GRPO 的解法很"江湖"：<strong>不需要知道每个人的真实武力值，只需要让同一拨人打一场，赢了加分，输了扣分。</strong></p>
+            <div class="formula-box">
+                $$ \hat{A}_i = \frac{r_i - \text{mean}(r_1, \dots, r_G)}{\text{std}(r_1, \dots, r_G)} $$
+            </div>
+            <p>这就是 GRPO 的全部秘密——把 Critic 干掉，用统计学代替神经网络。简单、粗暴、有效。</p>
+        </div>
+
+        <!-- 二、整体架构 -->
+        <div class="section" id="sec2">
+            <h2><span class="emoji">🗺️</span> 二、整体架构：组内比武的五个回合</h2>
+            <p>训练过程就像一个擂台赛，每个 prompt 是一场擂台：</p>
+            <table class="vs-table">
+                <tr><th>步骤</th><th>操作</th><th>比喻</th></tr>
+                <tr><td><span class="step-badge">1</span> 采样</td><td>对同一 prompt 采样 G 个回答</td><td>召集 G 名选手上台</td></tr>
+                <tr><td><span class="step-badge">2</span> 打分</td><td>奖励模型为每个回答打分</td><td>裁判逐个评分</td></tr>
+                <tr><td><span class="step-badge">3</span> 排名</td><td>组内标准化得到优势值</td><td>赢了加分，输了扣分</td></tr>
+                <tr><td><span class="step-badge">4</span> 更新</td><td>PPO 裁剪损失反向传播</td><td>教练根据表现调整训练策略</td></tr>
+                <tr><td><span class="step-badge">5</span> 循环</td><td>遍历所有 prompt，多个 epoch</td><td>打完一轮再来一轮</td></tr>
+            </table>
+        </div>
+
+        <!-- 三、超参数 -->
+        <div class="section" id="sec3">
+            <h2><span class="emoji">⚙️</span> 三、超参数：比赛规则设定</h2>
+            <p>代码开头定义了一堆超参数，别慌，我们一个个拆：</p>
+            <ul>
+                <li><code>G = 4</code> —— 每个 prompt 采样 4 个回答。相当于每场擂台赛有 4 名选手。G 越大，排名估计越稳定，但计算量也越大。</li>
+                <li><code>clip_eps = 0.2</code> —— PPO 的裁剪阈值。如果策略更新太激进（ratio 偏离 1 超过 20%），就踩刹车。</li>
+                <li><code>kl_coef = 0.05</code> —— KL 散度惩罚系数。防止策略跑得太远，保持和 SFT 模型的"血缘关系"。</li>
+                <li><code>lr = 1e-6</code> —— 学习率。RL 训练用小学习率是常识，大了会"兴奋过度"。</li>
+            </ul>
+            <div class="tip-box">
+                <strong>🤔 为什么 batch_size = 1？</strong> 因为 GRPO 的特殊性——每次处理一个 prompt，然后对这个 prompt 采样 G 个回答。所以真正的 batch 大小是 <code>G × tokens</code>。
+            </div>
+        </div>
+
+        <!-- 四、加载模型 -->
+        <div class="section" id="sec4">
+            <h2><span class="emoji">📦</span> 四、模型加载：选手入场</h2>
+            <p>这里加载了两个模型，它们的关系很有意思：</p>
+            <ul>
+                <li><strong>policy（Actor）</strong>：从 SFT 模型初始化，这是我们要训练的主角。</li>
+                <li><strong>ref_model（Reference）</strong>：同样从 SFT 初始化，但<strong>完全冻结</strong>。它是"原版"的参照物，用来计算 KL 散度。</li>
+            </ul>
+            <div class="tip-box">
+                <strong>🎭 比喻：</strong> policy 就像一个学生，不断学习进步；ref_model 就像他入学时的"档案照"，用来衡量他"变了多远"。如果变化太大（KL 散度太高），就要惩罚。
+            </div>
+            <p>注意 <code>for param in ref_model.parameters(): param.requires_grad = False</code>，这行确保 Reference 模型永远不会被更新——它是冻结的"锚点"。</p>
+        </div>
+
+        <!-- 五、第一步：采样 -->
+        <div class="section" id="sec5">
+            <h2><span class="step-badge">1</span> 第一步：采样 G 个回答</h2>
+            <p>这是 GRPO 最关键的一步。对同一个 prompt，用<strong>当前策略</strong>采样 G 个不同的回答。</p>
+            <p>代码逻辑：</p>
+            <ul>
+                <li>外层循环 <code>for _ in range(G)</code>：采样 4 次</li>
+                <li>内层循环 <code>for step in range(50)</code>：每次最多生成 50 个 token</li>
+                <li>每一步：<code>policy → softmax → 多样性采样 → 记录 log_prob</code></li>
+            </ul>
+            <div class="tip-box">
+                <strong>🎲 关键点：</strong> 注意 <code>torch.multinomial(probs, num_samples=1)</code>——这是<strong>随机采样</strong>，不是 greedy！所以同一个 prompt 采 4 次，会得到 4 个不同的回答。这就是"组"的来源。
+            </div>
+            <p>同时，每个回答都要记录 <code>log_probs</code>（对数概率），这些是<strong>旧策略</strong>下的概率，后面算重要性采样比率时要用。</p>
+        </div>
+
+        <!-- 六、第二步：奖励打分 -->
+        <div class="section" id="sec6">
+            <h2><span class="step-badge">2</span> 第二步：奖励模型打分</h2>
+            <p>采样完成后，把每个回答交给奖励模型打分：</p>
+            <ul>
+                <li>拼接 prompt + response 得到完整输入</li>
+                <li>奖励模型输出一个标量分数</li>
+                <li>这个分数可以是正的也可以是负的</li>
+            </ul>
+            <p>注意这里奖励模型是<strong>单独的模型</strong>，不是 policy 也不是 ref_model。在实际项目中，这个模型通常是人工标注数据训练出来的。</p>
+            <div class="tip-box">
+                <strong>🏋️ 比喻：</strong> 如果 policy 是选手，那奖励模型就是裁判。裁判只管打分，不管选手怎么训练——这就是 GRPO 的优雅之处。
+            </div>
+        </div>
+
+        <!-- 七、第三步：组内标准化 -->
+        <div class="section" id="sec7">
+            <h2><span class="step-badge">3</span> 第三步：组内标准化——代替 Critic 的关键！</h2>
+            <p>这是 GRPO 的<strong>灵魂操作</strong>，也是它和 PPO 最大的区别。</p>
+            <div class="formula-box">
+                $$ \hat{A}_i = \frac{r_i - \text{mean}(r)}{\text{std}(r) + \epsilon} $$
+            </div>
+            <p>三行代码，但含义深远：</p>
+            <ul>
+                <li><code>mean_r = rewards_t.mean()</code>：计算组内平均奖励</li>
+                <li><code>std_r = rewards_t.std() + 1e-8</code>：计算组内标准差，加 <code>1e-8</code> 防止除零</li>
+                <li><code>advantages = (rewards_t - mean_r) / std_r</code>：标准化</li>
+            </ul>
+            <p>标准化之后：</p>
+            <ul>
+                <li>得分 <strong>高于平均</strong>的回答 → 优势为 <strong>正</strong> → 鼓励策略多生成这类回答</li>
+                <li>得分 <strong>低于平均</strong>的回答 → 优势为 <strong>负</strong> → 惩罚策略生成这类回答</li>
+                <li>恰好等于平均 → 优势为 <strong>零</strong> → 不更新</li>
+            </ul>
+            <div class="tip-box">
+                <strong>💡 为什么这能代替 Critic？</strong> Critic 的作用是估计"这个状态有多好"，然后算出优势 <code>A = R - V(s)</code>。GRPO 的做法是：<strong>不估计绝对值，只比较相对值</strong>。同一组内的回答来自同一个 prompt（同一个状态），用组内排名代替绝对价值估计——这在数学上是合理的，因为优势本来就是一个相对量。
+            </div>
+            <p>这也解释了为什么叫 "Group Relative"——优势是在组内相对计算的。</p>
+        </div>
+
+        <!-- 八、第四步：GRPO 损失 -->
+        <div class="section" id="sec8">
+            <h2><span class="step-badge">4</span> 第四步：PPO 风格的裁剪损失</h2>
+            <p>损失计算部分和标准 PPO 几乎一模一样，但有一个关键区别：<strong>每个 token 共享同一个句子级优势</strong>。</p>
+            <div class="formula-box">
+                $$ \mathcal{L}^{\text{GRPO}} = -\frac{1}{\sum |y_i|} \sum_{i=1}^{G} \sum_{t=1}^{|y_i|} \min\left( \rho_{i,t} \hat{A}_i,\ \text{clip}(\rho_{i,t}, 1-\epsilon, 1+\epsilon) \hat{A}_i \right) $$
+            </div>
+            <p>逐步解读代码：</p>
+            <ul>
+                <li><strong>重新计算 log_prob</strong>：用<strong>当前策略</strong>对旧回答重新算概率（因为策略已经更新了）</li>
+                <li><strong>重要性采样比率</strong>：<code>ratio = exp(curr_logp - old_logp)</code>，衡量新旧策略的差异</li>
+                <li><strong>裁剪</strong>：<code>torch.clamp(ratio, 1-ε, 1+ε)</code>，防止更新太猛</li>
+                <li><strong>取 min</strong>：在原始目标和裁剪目标中取较小值——悲观估计，保守更新</li>
+                <li><strong>除以 token 数</strong>：归一化，不同长度的回答不会因为 token 多就主导梯度</li>
+            </ul>
+            <div class="tip-box">
+                <strong>🔑 关键区别：</strong> 在 PPO 中，优势 <code>A(s_t, a_t)</code> 是逐 token 的（每个 token 有自己的优势估计）。在 GRPO 中，整句话共享同一个 <code>hat{A}_i</code>，因为优势是在句子级别计算的。这意味着<strong>好的回答中每个 token 都会被鼓励，差的回答中每个 token 都会被惩罚</strong>。
+            </div>
+            <p>代码中还有一行 <code>if advantage == 0: continue</code>——如果优势恰好为零（等于平均值），就跳过这个回答，不产生梯度。这是一个小优化。</p>
+        </div>
+
+        <!-- 九、第五步：训练循环 -->
+        <div class="section" id="sec9">
+            <h2><span class="step-badge">5</span> 第五步：反向传播与训练循环</h2>
+            <p>最后就是标准的 PyTorch 训练流程：</p>
+            <ul>
+                <li><code>loss = total_loss / total_tokens</code>：用总损失除以总 token 数，得到平均损失</li>
+                <li><code>optimizer.zero_grad()</code>：清空梯度</li>
+                <li><code>loss.backward()</code>：反向传播</li>
+                <li><code>optimizer.step()</code>：更新参数</li>
+            </ul>
+            <p>整个训练循环是 <code>epochs × prompts</code>，每个 prompt 产生 G 个回答，最终汇总损失一起更新。</p>
+            <div class="tip-box">
+                <strong>⏱️ 效率对比：</strong> 标准 PPO 每步需要 4 个模型前向传播（Actor、Critic、Reward、Reference）。GRPO 只需要 3 个（Policy、Reward、Reference），省掉了和 Actor 一样大的 Critic——<strong>内存直接省 25%，训练稳定性还更好</strong>。
+            </div>
+        </div>
+
+        <!-- 十、总结对比 -->
+        <div class="section" id="sec10">
+            <h2><span class="emoji">🏆</span> 十、总结：GRPO vs PPO</h2>
+            <table class="vs-table">
+                <tr><th>维度</th><th>PPO</th><th>GRPO</th></tr>
+                <tr><td>需要的网络</td><td>Actor + Critic + Reward + Reference（4个）</td><td>Policy + Reward + Reference（3个）</td></tr>
+                <tr><td>优势估计</td><td>Critic 网络逐 token 估计</td><td>组内标准化，句子级</td></tr>
+                <tr><td>内存开销</td><td>高（Critic ≈ Actor 大小）</td><td>低（无 Critic）</td></tr>
+                <tr><td>训练稳定性</td><td>Critic 训练不稳定可能拖累整体</td><td>没有 Critic，更稳定</td></tr>
+                <tr><td>核心思想</td><td>估计绝对价值 → 算优势</td><td>组内相对排名 → 算优势</td></tr>
+                <tr><td>代表模型</td><td>InstructGPT, ChatGPT</td><td>DeepSeek-Math, DeepSeek-V3</td></tr>
+            </table>
+            <div class="tip-box">
+                <strong>🎯 一句话总结：</strong> GRPO 把"请一个裁判来估绝对值"换成了"让选手互相打一场看相对排名"。少了一个人，比赛反而更公平了。
+            </div>
+        </div>
+
+    </div>
+</div>
+
+</body>
+</html>

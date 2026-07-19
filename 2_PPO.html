@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>PPO 训练代码讲解 · 四大天王齐上阵</title>
+    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
+            background: #0d1117;
+            color: #c9d1d9;
+            margin: 0;
+            padding: 0;
+        }
+
+        .page-header {
+            background: linear-gradient(135deg, #161b22, #1c2333);
+            border-bottom: 1px solid #30363d;
+            padding: 32px 48px;
+            text-align: center;
+        }
+
+        .page-header h1 {
+            font-size: 2.2em;
+            background: linear-gradient(90deg, #ff6b6b, #ffa94d, #ffd43b, #69db7c);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+
+        .page-header .subtitle {
+            font-size: 1.1em;
+            color: #8b949e;
+        }
+
+        .container {
+            display: flex;
+            gap: 0;
+            max-width: 1600px;
+            margin: 0 auto;
+            min-height: calc(100vh - 120px);
+        }
+
+        /* ===== 左侧代码面板 ===== */
+        .left-panel {
+            flex: 0 0 50%;
+            background: #0d1117;
+            border-right: 1px solid #30363d;
+            overflow-y: auto;
+            padding: 24px 28px;
+        }
+
+        .left-panel::-webkit-scrollbar { width: 6px; }
+        .left-panel::-webkit-scrollbar-track { background: #0d1117; }
+        .left-panel::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+
+        .code-section {
+            margin-bottom: 28px;
+            border: 1px solid #21262d;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #161b22;
+        }
+
+        .code-section-header {
+            background: #21262d;
+            padding: 10px 16px;
+            font-size: 0.85em;
+            color: #8b949e;
+            border-bottom: 1px solid #30363d;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .code-section-header .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .dot-red { background: #f85149; }
+        .dot-yellow { background: #d29922; }
+        .dot-green { background: #3fb950; }
+
+        pre {
+            background: #0d1117;
+            color: #c9d1d9;
+            padding: 16px 20px;
+            overflow-x: auto;
+            font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+            font-size: 0.82em;
+            line-height: 1.65;
+            margin: 0;
+            counter-reset: line;
+        }
+
+        pre code { display: block; }
+
+        .line-number {
+            display: inline-block;
+            width: 32px;
+            text-align: right;
+            color: #484f58;
+            margin-right: 16px;
+            user-select: none;
+            font-size: 0.9em;
+        }
+
+        /* ===== 语法高亮 class ===== */
+        .code-comment { color: #6a9955; font-style: italic; }
+        .code-keyword { color: #c586c0; }
+        .code-func { color: #dcdcaa; }
+        .code-var { color: #9cdcfe; }
+        .code-op { color: #d4d4d4; }
+        .code-string { color: #ce9178; }
+        .code-number { color: #b5cea8; }
+        .code-class { color: #4ec9b0; }
+        .code-param { color: #9cdcfe; }
+        .code-self { color: #569cd6; }
+        .code-decorator { color: #dcdcaa; }
+        .code-builtin { color: #4ec9b0; }
+
+        /* ===== 右侧讲解面板 ===== */
+        .right-panel {
+            flex: 1;
+            background: #161b22;
+            overflow-y: auto;
+            padding: 32px 36px;
+        }
+
+        .right-panel::-webkit-scrollbar { width: 6px; }
+        .right-panel::-webkit-scrollbar-track { background: #161b22; }
+        .right-panel::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+
+        .right-panel h2 {
+            color: #ffa94d;
+            font-size: 1.5em;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #30363d;
+        }
+
+        .right-panel h3 {
+            color: #79c0ff;
+            font-size: 1.2em;
+            margin: 20px 0 10px 0;
+        }
+
+        .right-panel p {
+            margin-bottom: 12px;
+            line-height: 1.8;
+            color: #c9d1d9;
+        }
+
+        .right-panel ul, .right-panel ol {
+            margin: 10px 0 16px 20px;
+            line-height: 1.9;
+        }
+
+        .right-panel li { margin-bottom: 4px; }
+
+        .intro-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin: 16px 0;
+        }
+
+        .character-card {
+            border: 1px solid #30363d;
+            border-radius: 10px;
+            padding: 14px 16px;
+            background: #0d1117;
+            transition: border-color 0.2s;
+        }
+
+        .character-card:hover { border-color: #58a6ff; }
+
+        .character-card .char-name {
+            font-size: 1.05em;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .character-card .char-role {
+            font-size: 0.85em;
+            color: #8b949e;
+        }
+
+        .char-actor .char-name { color: #ffa94d; }
+        .char-ref .char-name { color: #8b949e; }
+        .char-reward .char-name { color: #f85149; }
+        .char-critic .char-name { color: #3fb950; }
+
+        .tip-box {
+            background: #1c2333;
+            border-left: 4px solid #ffa94d;
+            padding: 14px 16px;
+            margin: 14px 0;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .tip-box strong { color: #ffa94d; }
+
+        .formula-box {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-left: 4px solid #58a6ff;
+            padding: 16px 20px;
+            margin: 14px 0;
+            border-radius: 0 8px 8px 0;
+            overflow-x: auto;
+            font-size: 1.05em;
+        }
+
+        .key-point {
+            background: #0d1117;
+            border: 1px solid #238636;
+            border-radius: 8px;
+            padding: 14px 16px;
+            margin: 14px 0;
+        }
+
+        .key-point strong { color: #3fb950; }
+
+        .warning-box {
+            background: #1c1410;
+            border-left: 4px solid #d29922;
+            padding: 12px 16px;
+            margin: 14px 0;
+            border-radius: 0 8px 8px 0;
+            font-size: 0.92em;
+        }
+
+        .summary-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .summary-list li {
+            padding: 10px 14px;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            background: #0d1117;
+        }
+
+        .summary-list li strong {
+            color: #ffa94d;
+        }
+
+        .arrow-divider {
+            text-align: center;
+            color: #484f58;
+            font-size: 1.2em;
+            margin: 8px 0;
+            letter-spacing: 2px;
+        }
+
+        /* ===== 跨栏布局 ===== */
+        .full-width {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 24px 48px;
+        }
+
+        .full-width .section-title {
+            font-size: 1.6em;
+            color: #ffa94d;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+
+        .architecture-diagram {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            padding: 28px 32px;
+            text-align: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.95em;
+            line-height: 1.8;
+            overflow-x: auto;
+        }
+
+        .architecture-diagram .box {
+            display: inline-block;
+            padding: 6px 16px;
+            border-radius: 6px;
+            margin: 4px;
+            font-weight: 600;
+        }
+
+        .box-actor { background: #ffa94d22; border: 1px solid #ffa94d; color: #ffa94d; }
+        .box-ref { background: #8b949e22; border: 1px solid #8b949e; color: #8b949e; }
+        .box-reward { background: #f8514922; border: 1px solid #f85149; color: #f85149; }
+        .box-critic { background: #3fb95022; border: 1px solid #3fb950; color: #3fb950; }
+
+        .data-flow {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            margin: 12px 0;
+            flex-wrap: wrap;
+        }
+
+        .data-flow .arrow { color: #484f58; font-size: 1.2em; }
+        .data-flow .flow-item {
+            background: #21262d;
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 0.88em;
+            color: #c9d1d9;
+        }
+    </style>
+</head>
+<body>
+
+<div class="page-header">
+    <h1>PPO 训练代码讲解 · 四大天王齐上阵</h1>
+    <div class="subtitle">ppo_luxun.py —— 从零理解 RLHF 的核心算法</div>
+</div>
+
+<!-- ============ 架构概览 ============ -->
+<div class="full-width">
+    <div class="section-title">整体架构：四个模型的爱恨情仇</div>
+    <div class="architecture-diagram">
+        <div style="margin-bottom: 16px;">
+            <span class="box box-ref">古板师爷 (Reference)</span>
+            <span style="color:#484f58; font-size:1.4em; margin:0 8px;">⟵ 冻结，提供 KL 基准</span>
+        </div>
+        <div style="margin-bottom: 16px;">
+            <span class="box box-actor">修炼少侠 (Actor)</span>
+            <span style="color:#484f58; font-size:1.4em; margin:0 8px;">⟵ 生成回答，被优化的主角</span>
+        </div>
+        <div style="margin-bottom: 16px;">
+            <span class="box box-reward">毒舌评委 (Reward Model)</span>
+            <span style="color:#484f58; font-size:1.4em; margin:0 8px;">⟵ 给最终回答打分</span>
+        </div>
+        <div>
+            <span class="box box-critic">金牌陪练 (Critic)</span>
+            <span style="color:#484f58; font-size:1.4em; margin:0 8px;">⟵ 预测每步价值，算优势</span>
+        </div>
+    </div>
+
+    <div class="architecture-diagram" style="margin-top: 16px;">
+        <div style="font-size: 1.1em; color: #ffa94d; margin-bottom: 12px;">数据流</div>
+        <div class="data-flow">
+            <span class="flow-item">Prompt</span>
+            <span class="arrow">→</span>
+            <span class="flow-item" style="border:1px solid #ffa94d;">Actor 生成回答</span>
+            <span class="arrow">→</span>
+            <span class="flow-item">记录 log_prob, value, ref_log_prob</span>
+        </div>
+        <div class="data-flow">
+            <span class="arrow">↓</span>
+        </div>
+        <div class="data-flow">
+            <span class="flow-item" style="border:1px solid #f85149;">Reward Model 打分</span>
+            <span class="arrow">+</span>
+            <span class="flow-item" style="border:1px solid #8b949e;">KL 惩罚</span>
+            <span class="arrow">→</span>
+            <span class="flow-item">奖励 r_t</span>
+        </div>
+        <div class="data-flow">
+            <span class="arrow">↓</span>
+        </div>
+        <div class="data-flow">
+            <span class="flow-item" style="border:1px solid #3fb950;">Critic 预测 V(s_t)</span>
+            <span class="arrow">→</span>
+            <span class="flow-item">优势 A_t = G_t - V(s_t)</span>
+        </div>
+        <div class="data-flow">
+            <span class="arrow">↓</span>
+        </div>
+        <div class="data-flow">
+            <span class="flow-item" style="border:1px solid #ffa94d;">Actor: PPO Clip 损失</span>
+            <span class="arrow">+</span>
+            <span class="flow-item" style="border:1px solid #3fb950;">Critic: MSE 损失</span>
+            <span class="arrow">→</span>
+            <span class="flow-item">反向传播更新</span>
+        </div>
+    </div>
+</div>
+
+<!-- ============ 主体：左右分栏 ============ -->
+<div class="container">
+    <!-- ===== 左面板：完整代码 ===== -->
+    <div class="left-panel">
+
+        <!-- 第1块：模型定义 -->
+        <div class="code-section" id="code-init">
+            <div class="code-section-header">
+                <span class="dot dot-red"></span>
+                <span class="dot dot-yellow"></span>
+                <span class="dot dot-green"></span>
+                <span>ppo_luxun.py · 模型定义</span>
+            </div>
+            <pre><code><span class="line-number"> 1</span><span class="code-comment"># 奖励模型占位：实际应替换为训练好的 RewardModel</span>
+<span class="line-number"> 2</span><span class="code-keyword">class</span> <span class="code-class">RewardModel</span>(<span class="code-var">nn.Module</span>):
+<span class="line-number"> 3</span>    <span class="code-string">"""简单的奖励模型：用一个线性层将最后一个 token 的隐状态映射为标量"""</span>
+<span class="line-number"> 4</span>    <span class="code-keyword">def</span> <span class="code-func">__init__</span>(<span class="code-self">self</span>, <span class="code-param">base_model</span>: <span class="code-class">FullTransformer</span>):
+<span class="line-number"> 5</span>        <span class="code-builtin">super</span>().<span class="code-func">__init__</span>()
+<span class="line-number"> 6</span>        <span class="code-self">self</span>.<span class="code-var">base</span> = base_model
+<span class="line-number"> 7</span>        <span class="code-self">self</span>.<span class="code-var">score_head</span> = <span class="code-var">nn.Linear</span>(base_model.d_model, <span class="code-number">1</span>, bias=<span class="code-keyword">False</span>)
+<span class="line-number"> 8</span>    <span class="code-keyword">def</span> <span class="code-func">forward</span>(<span class="code-self">self</span>, <span class="code-param">input_ids</span>):
+<span class="line-number"> 9</span>        hidden = <span class="code-self">self</span>.base(input_ids)  <span class="code-comment"># 只取隐状态</span>
+<span class="line-number">10</span>        last_hidden = hidden[:, <span class="code-number">-1</span>, :]  <span class="code-comment"># [B, d_model]</span>
+<span class="line-number">11</span>        <span class="code-keyword">return</span> <span class="code-self">self</span>.score_head(last_hidden).squeeze(<span class="code-number">-1</span>)  <span class="code-comment"># [B]</span>
+<span class="line-number">12</span>
+<span class="line-number">13</span><span class="code-comment"># Critic 模型：与 Actor 结构相同，但最后输出一个标量值</span>
+<span class="line-number">14</span><span class="code-keyword">class</span> <span class="code-class">CriticModel</span>(<span class="code-var">nn.Module</span>):
+<span class="line-number">15</span>    <span class="code-keyword">def</span> <span class="code-func">__init__</span>(<span class="code-self">self</span>, <span class="code-param">base_model</span>: <span class="code-class">FullTransformer</span>):
+<span class="line-number">16</span>        <span class="code-builtin">super</span>().<span class="code-func">__init__</span>()
+<span class="line-number">17</span>        <span class="code-self">self</span>.<span class="code-var">base</span> = base_model
+<span class="line-number">18</span>        <span class="code-self">self</span>.<span class="code-var">value_head</span> = <span class="code-var">nn.Linear</span>(base_model.d_model, <span class="code-number">1</span>, bias=<span class="code-keyword">False</span>)
+<span class="line-number">19</span>    <span class="code-keyword">def</span> <span class="code-func">forward</span>(<span class="code-self">self</span>, <span class="code-param">input_ids</span>):
+<span class="line-number">20</span>        hidden = <span class="code-self">self</span>.base(input_ids)  <span class="code-comment"># [B, S, d_model]</span>
+<span class="line-number">21</span>        values = <span class="code-self">self</span>.value_head(hidden).squeeze(<span class="code-number">-1</span>)  <span class="code-comment"># [B, S]</span>
+<span class="line-number">22</span>        <span class="code-keyword">return</span> values
+<span class="line-number">23</span>
+<span class="line-number">24</span><span class="code-keyword">def</span> <span class="code-func">compute_kl</span>(<span class="code-param">log_probs</span>, <span class="code-param">ref_log_probs</span>):
+<span class="line-number">25</span>    <span class="code-string">"""近似 KL 散度"""</span>
+<span class="line-number">26</span>    <span class="code-keyword">return</span> log_probs <span class="code-op">-</span> ref_log_probs</code></pre>
+            </div>
+
+        <!-- 第2块：模型初始化 -->
+        <div class="code-section" id="code-model-init">
+            <div class="code-section-header">
+                <span class="dot dot-red"></span>
+                <span class="dot dot-yellow"></span>
+                <span class="dot dot-green"></span>
+                <span>ppo_luxun.py · 超参数 & 模型初始化</span>
+            </div>
+            <pre><code><span class="line-number"> 1</span><span class="code-keyword">def</span> <span class="code-func">ppo_train</span>():
+<span class="line-number"> 2</span>    <span class="code-comment"># 超参数</span>
+<span class="line-number"> 3</span>    batch_size = <span class="code-number">4</span>
+<span class="line-number"> 4</span>    epochs = <span class="code-number">3</span>
+<span class="line-number"> 5</span>    lr_actor = <span class="code-number">1e-6</span>
+<span class="line-number"> 6</span>    lr_critic = <span class="code-number">5e-6</span>
+<span class="line-number"> 7</span>    clip_eps = <span class="code-number">0.2</span>
+<span class="line-number"> 8</span>    kl_coef = <span class="code-number">0.05</span>
+<span class="line-number"> 9</span>    gamma = <span class="code-number">0.95</span>
+<span class="line-number">10</span>    device = <span class="code-string">'cuda'</span> <span class="code-keyword">if</span> torch.cuda.is_available() <span class="code-keyword">else</span> <span class="code-string">'cpu'</span>
+<span class="line-number">11</span>    max_len = <span class="code-number">256</span>
+<span class="line-number">12</span>
+<span class="line-number">13</span>    <span class="code-comment"># 加载分词器</span>
+<span class="line-number">14</span>    tokenizer = <span class="code-class">Tokenizer</span>.<span class="code-func">from_file</span>(<span class="code-string">"tokenizer_luxun/tokenizer.json"</span>)
+<span class="line-number">15</span>    vocab_size = <span class="code-builtin">len</span>(tokenizer.<span class="code-func">get_vocab</span>())
+<span class="line-number">16</span>
+<span class="line-number">17</span>    <span class="code-comment"># 🧙 Actor：加载 SFT 模型</span>
+<span class="line-number">18</span>    actor = <span class="code-class">FullTransformer</span>(vocab_size, d_model=<span class="code-number">64</span>, n_layers=<span class="code-number">3</span>, n_heads=<span class="code-number">4</span>).<span class="code-func">to</span>(device)
+<span class="line-number">19</span>    actor.<span class="code-func">load_state_dict</span>(<span class="code-func">torch.load</span>(<span class="code-string">"checkpoints_sft/sft_model.pth"</span>, map_location=device))
+<span class="line-number">20</span>
+<span class="line-number">21</span>    <span class="code-comment"># 🧓 Reference：SFT 的冻结副本</span>
+<span class="line-number">22</span>    ref_model = <span class="code-class">FullTransformer</span>(vocab_size, d_model=<span class="code-number">64</span>, n_layers=<span class="code-number">3</span>, n_heads=<span class="code-number">4</span>).<span class="code-func">to</span>(device)
+<span class="line-number">23</span>    ref_model.<span class="code-func">load_state_dict</span>(<span class="code-func">torch.load</span>(<span class="code-string">"checkpoints_sft/reference_model.pth"</span>, map_location=device))
+<span class="line-number">24</span>    <span class="code-keyword">for</span> param <span class="code-keyword">in</span> ref_model.parameters():
+<span class="line-number">25</span>        param.requires_grad = <span class="code-keyword">False</span>
+<span class="line-number">26</span>
+<span class="line-number">27</span>    <span class="code-comment"># 🏆 Reward Model（简化版，实际需加载训练好的）</span>
+<span class="line-number">28</span>    reward_model = <span class="code-class">RewardModel</span>(<span class="code-class">FullTransformer</span>(vocab_size, d_model=<span class="code-number">64</span>, n_layers=<span class="code-number">3</span>, n_heads=<span class="code-number">4</span>)).<span class="code-func">to</span>(device)
+<span class="line-number">29</span>    <span class="code-comment"># reward_model.load_state_dict(torch.load("reward_model.pth"))</span>
+<span class="line-number">30</span>
+<span class="line-number">31</span>    <span class="code-comment"># 🏋️ Critic：随机初始化，从零学起</span>
+<span class="line-number">32</span>    critic = <span class="code-class">CriticModel</span>(<span class="code-class">FullTransformer</span>(vocab_size, d_model=<span class="code-number">64</span>, n_layers=<span class="code-number">3</span>, n_heads=<span class="code-number">4</span>)).<span class="code-func">to</span>(device)
+<span class="line-number">33</span>
+<span class="line-number">34</span>    <span class="code-comment"># 优化器</span>
+<span class="line-number">35</span>    opt_actor = <span class="code-var">torch.optim</span>.<span class="code-class">AdamW</span>(actor.parameters(), lr=lr_actor)
+<span class="line-number">36</span>    opt_critic = <span class="code-var">torch.optim</span>.<span class="code-class">AdamW</span>(critic.parameters(), lr=lr_critic)</code></pre>
+            </div>
+
+        <!-- 第3块：采样循环 -->
+        <div class="code-section" id="code-sample">
+            <div class="code-section-header">
+                <span class="dot dot-red"></span>
+                <span class="dot dot-yellow"></span>
+                <span class="dot dot-green"></span>
+                <span>ppo_luxun.py · 采样与记录</span>
+            </div>
+            <pre><code><span class="line-number"> 1</span>    prompts = [<span class="code-string">"&lt;|user|&gt;你好&lt;|assistant|&gt;"</span>, <span class="code-string">"&lt;|user|&gt;今天天气不错&lt;|assistant|&gt;"</span>]
+<span class="line-number"> 2</span>
+<span class="line-number"> 3</span>    actor.<span class="code-func">train</span>()
+<span class="line-number"> 4</span>    critic.<span class="code-func">train</span>()
+<span class="line-number"> 5</span>    <span class="code-keyword">for</span> epoch <span class="code-keyword">in</span> <span class="code-builtin">range</span>(epochs):
+<span class="line-number"> 6</span>        <span class="code-keyword">for</span> prompt <span class="code-keyword">in</span> prompts:
+<span class="line-number"> 7</span>            <span class="code-comment"># 1. Actor 生成回答</span>
+<span class="line-number"> 8</span>            input_ids = tokenizer.<span class="code-func">encode</span>(prompt).ids
+<span class="line-number"> 9</span>            input_tensor = <span class="code-func">torch.tensor</span>([input_ids], device=device)
+<span class="line-number">10</span>
+<span class="line-number">11</span>            generated = []
+<span class="line-number">12</span>            log_probs = []
+<span class="line-number">13</span>            ref_log_probs = []
+<span class="line-number">14</span>            values = []
+<span class="line-number">15</span>
+<span class="line-number">16</span>            <span class="code-keyword">with</span> <span class="code-var">torch.no_grad</span>():
+<span class="line-number">17</span>                <span class="code-keyword">for</span> _ <span class="code-keyword">in</span> <span class="code-builtin">range</span>(<span class="code-number">50</span>):  <span class="code-comment"># 最大生成长度</span>
+<span class="line-number">18</span>                    logits = <span class="code-func">actor</span>(input_tensor)[:, <span class="code-number">-1</span>, :]
+<span class="line-number">19</span>                    probs = <span class="code-var">F.softmax</span>(logits, dim=<span class="code-number">-1</span>)
+<span class="line-number">20</span>                    next_token = <span class="code-var">torch.multinomial</span>(probs, num_samples=<span class="code-number">1</span>)
+<span class="line-number">21</span>                    generated.<span class="code-func">append</span>(next_token.<span class="code-func">item</span>())
+<span class="line-number">22</span>
+<span class="line-number">23</span>                    <span class="code-comment"># 记录 Actor 的 log_prob</span>
+<span class="line-number">24</span>                    log_prob = <span class="code-var">torch.log</span>(probs[<span class="code-number">0</span>, next_token.<span class="code-func">item</span>()])
+<span class="line-number">25</span>                    log_probs.<span class="code-func">append</span>(log_prob)
+<span class="line-number">26</span>
+<span class="line-number">27</span>                    <span class="code-comment"># Reference 模型的 log_prob</span>
+<span class="line-number">28</span>                    ref_logits = <span class="code-func">ref_model</span>(input_tensor)[:, <span class="code-number">-1</span>, :]
+<span class="line-number">29</span>                    ref_probs = <span class="code-var">F.softmax</span>(ref_logits, dim=<span class="code-number">-1</span>)
+<span class="line-number">30</span>                    ref_log_prob = <span class="code-var">torch.log</span>(ref_probs[<span class="code-number">0</span>, next_token.<span class="code-func">item</span>()])
+<span class="line-number">31</span>                    ref_log_probs.<span class="code-func">append</span>(ref_log_prob)
+<span class="line-number">32</span>
+<span class="line-number">33</span>                    <span class="code-comment"># Critic 预测当前状态的价值</span>
+<span class="line-number">34</span>                    val = <span class="code-func">critic</span>(input_tensor)[:, <span class="code-number">-1</span>]
+<span class="line-number">35</span>                    values.<span class="code-func">append</span>(val)
+<span class="line-number">36</span>
+<span class="line-number">37</span>                    input_tensor = <span class="code-var">torch.cat</span>([input_tensor, next_token.<span class="code-func">unsqueeze</span>(<span class="code-number">0</span>)], dim=<span class="code-number">1</span>)
+<span class="line-number">38</span>                    <span class="code-keyword">if</span> next_token.<span class="code-func">item</span>() == tokenizer.<span class="code-func">token_to_id</span>(<span class="code-string">"&lt;|eos|&gt;"</span>):
+<span class="line-number">39</span>                        <span class="code-keyword">break</span></code></pre>
+            </div>
+
+        <!-- 第4块：奖励计算 -->
+        <div class="code-section" id="code-reward">
+            <div class="code-section-header">
+                <span class="dot dot-red"></span>
+                <span class="dot dot-yellow"></span>
+                <span class="dot dot-green"></span>
+                <span>ppo_luxun.py · 奖励计算</span>
+            </div>
+            <pre><code><span class="line-number"> 1</span>            <span class="code-comment"># 2. 计算奖励</span>
+<span class="line-number"> 2</span>            full_ids = <span class="code-func">torch.tensor</span>([input_ids + generated], device=device)
+<span class="line-number"> 3</span>            reward = <span class="code-func">reward_model</span>(full_ids).<span class="code-func">item</span>()  <span class="code-comment"># 标量</span>
+<span class="line-number"> 4</span>
+<span class="line-number"> 5</span>            <span class="code-comment"># 每步奖励 = KL 惩罚 + 最后一步加分</span>
+<span class="line-number"> 6</span>            rewards = []
+<span class="line-number"> 7</span>            <span class="code-keyword">for</span> t <span class="code-keyword">in</span> <span class="code-builtin">range</span>(<span class="code-builtin">len</span>(generated)):
+<span class="line-number"> 8</span>                kl_pen = kl_coef <span class="code-op">*</span> (log_probs[t] <span class="code-op">-</span> ref_log_probs[t])
+<span class="line-number"> 9</span>                step_reward = <span class="code-op">-</span>kl_pen
+<span class="line-number">10</span>                <span class="code-keyword">if</span> t == <span class="code-builtin">len</span>(generated) <span class="code-op">-</span> <span class="code-number">1</span>:
+<span class="line-number">11</span>                    step_reward <span class="code-op">+=</span> reward
+<span class="line-number">12</span>                rewards.<span class="code-func">append</span>(step_reward)</code></pre>
+            </div>
+
+        <!-- 第5块：优势计算 -->
+        <div class="code-section" id="code-advantage">
+            <div class="code-section-header">
+                <span class="dot dot-red"></span>
+                <span class="dot dot-yellow"></span>
+                <span class="dot dot-green"></span>
+                <span>ppo_luxun.py · 回报与优势计算</span>
+            </div>
+            <pre><code><span class="line-number"> 1</span>            <span class="code-comment"># 3. 计算回报和优势</span>
+<span class="line-number"> 2</span>            returns = []
+<span class="line-number"> 3</span>            G = <span class="code-number">0</span>
+<span class="line-number"> 4</span>            <span class="code-keyword">for</span> r <span class="code-keyword">in</span> <span class="code-builtin">reversed</span>(rewards):
+<span class="line-number"> 5</span>                G = r <span class="code-op">+</span> gamma <span class="code-op">*</span> G
+<span class="line-number"> 6</span>                returns.<span class="code-func">insert</span>(<span class="code-number">0</span>, G)
+<span class="line-number"> 7</span>            returns = <span class="code-func">torch.tensor</span>(returns, device=device)
+<span class="line-number"> 8</span>            values = <span class="code-var">torch.stack</span>(values).squeeze()
+<span class="line-number"> 9</span>            advantages = returns <span class="code-op">-</span> values</code></pre>
+            </div>
+
+        <!-- 第6块：PPO 更新 -->
+        <div class="code-section" id="code-ppo-update">
+            <div class="code-section-header">
+                <span class="dot dot-red"></span>
+                <span class="dot dot-yellow"></span>
+                <span class="dot dot-green"></span>
+                <span>ppo_luxun.py · PPO 更新</span>
+            </div>
+            <pre><code><span class="line-number"> 1</span>            <span class="code-comment"># 4. PPO 更新</span>
+<span class="line-number"> 2</span>            <span class="code-comment"># 重新计算 Actor 当前的 log_prob</span>
+<span class="line-number"> 3</span>            curr_log_probs = []
+<span class="line-number"> 4</span>            inp = <span class="code-func">torch.tensor</span>([input_ids], device=device)
+<span class="line-number"> 5</span>            <span class="code-keyword">for</span> t, token_id <span class="code-keyword">in</span> <span class="code-builtin">enumerate</span>(generated):
+<span class="line-number"> 6</span>                logits = <span class="code-func">actor</span>(inp)[:, <span class="code-number">-1</span>, :]
+<span class="line-number"> 7</span>                probs = <span class="code-var">F.softmax</span>(logits, dim=<span class="code-number">-1</span>)
+<span class="line-number"> 8</span>                curr_log_prob = <span class="code-var">torch.log</span>(probs[<span class="code-number">0</span>, token_id])
+<span class="line-number"> 9</span>                curr_log_probs.<span class="code-func">append</span>(curr_log_prob)
+<span class="line-number">10</span>                inp = <span class="code-var">torch.cat</span>([inp, <span class="code-func">torch.tensor</span>([[token_id]], device=device)], dim=<span class="code-number">1</span>)
+<span class="line-number">11</span>            curr_log_probs = <span class="code-var">torch.stack</span>(curr_log_probs)
+<span class="line-number">12</span>            old_log_probs = <span class="code-var">torch.stack</span>(log_probs).<span class="code-func">detach</span>()
+<span class="line-number">13</span>
+<span class="line-number">14</span>            <span class="code-comment"># 计算重要性采样比率</span>
+<span class="line-number">15</span>            ratio = <span class="code-var">torch.exp</span>(curr_log_probs <span class="code-op">-</span> old_log_probs)
+<span class="line-number">16</span>
+<span class="line-number">17</span>            <span class="code-comment"># Clip 损失</span>
+<span class="line-number">18</span>            surr1 = ratio <span class="code-op">*</span> advantages
+<span class="line-number">19</span>            surr2 = <span class="code-var">torch.clamp</span>(ratio, <span class="code-number">1</span> <span class="code-op">-</span> clip_eps, <span class="code-number">1</span> <span class="code-op">+</span> clip_eps) <span class="code-op">*</span> advantages
+<span class="line-number">20</span>            actor_loss = <span class="code-op">-</span><span class="code-var">torch.min</span>(surr1, surr2).mean()
+<span class="line-number">21</span>
+<span class="line-number">22</span>            opt_actor.<span class="code-func">zero_grad</span>()
+<span class="line-number">23</span>            actor_loss.<span class="code-func">backward</span>()
+<span class="line-number">24</span>            opt_actor.<span class="code-func">step</span>()
+<span class="line-number">25</span>
+<span class="line-number">26</span>            <span class="code-comment"># Critic 更新（MSE 损失）</span>
+<span class="line-number">27</span>            critic_loss = <span class="code-var">F.mse_loss</span>(values, returns.<span class="code-func">detach</span>())
+<span class="line-number">28</span>            opt_critic.<span class="code-func">zero_grad</span>()
+<span class="line-number">29</span>            critic_loss.<span class="code-func">backward</span>()
+<span class="line-number">30</span>            opt_critic.<span class="code-func">step</span>()
+<span class="line-number">31</span>
+<span class="line-number">32</span>        <span class="code-builtin">print</span>(<span class="code-string">f"PPO epoch </span>{epoch<span class="code-op">+</span><span class="code-number">1</span>}<span class="code-string"> 完成"</span>)
+<span class="line-number">33</span>
+<span class="line-number">34</span>    <span class="code-func">torch.save</span>(actor.<span class="code-func">state_dict</span>(), <span class="code-string">"ppo_actor.pth"</span>)
+<span class="line-number">35</span>    <span class="code-builtin">print</span>(<span class="code-string">"PPO 训练完成！"</span>)</code></pre>
+            </div>
+
+    </div>
+
+    <!-- ===== 右面板：循序渐进讲解 ===== -->
+    <div class="right-panel">
+
+        <h2>🎬 PPO：四大天王齐上阵</h2>
+
+        <p>还记得 SFT 阶段那个"有监督微调"吗？那只是开胃菜。PPO 才是 RLHF 的正餐 —— 一个让模型<strong>自己生成、自己评价、自己进化</strong>的魔法循环。</p>
+
+        <p>这里有四个角色，各司其职，缺一不可：</p>
+
+        <div class="intro-grid">
+            <div class="character-card char-actor">
+                <div class="char-name">🧙 修炼少侠 (Actor)</div>
+                <div class="char-role">加载 SFT 模型，是被优化的主角。每次生成一个回答，它的策略就是我们要改进的对象。</div>
+            </div>
+            <div class="character-card char-ref">
+                <div class="char-name">🧓 古板师爷 (Reference)</div>
+                <div class="char-role">SFT 模型的冻结副本。像个古板的老先生，随时提醒少侠"别跑太偏了"。</div>
+            </div>
+            <div class="character-card char-reward">
+                <div class="char-name">🏆 毒舌评委 (Reward Model)</div>
+                <div class="char-role">给整个回答打一个总分。"这段话值几分？" —— 一个标量搞定。</div>
+            </div>
+            <div class="character-card char-critic">
+                <div class="char-name">🏋️ 金牌陪练 (Critic)</div>
+                <div class="char-role">随机初始化，从零学起。预测每个 token 位置的未来回报，帮你算出"这步走得妙不妙"。</div>
+            </div>
+        </div>
+
+        <div class="tip-box">
+            <strong>💡 核心流程一句话：</strong>
+            Actor 写一句话 → 评委给总分 R → 师爷盯着每步别跑偏（KL 惩罚） → Critic 预估每步的价值 V(t) → 算出优势 A(t)=G(t)-V(t) → 用 PPO Clip 更新 Actor，用 MSE 更新 Critic。
+        </div>
+
+        <!-- ===== 第一步：模型定义 ===== -->
+        <h2 id="step1">第一步：模型定义 —— Reward & Critic 长啥样</h2>
+
+        <h3>毒舌评委 (Reward Model)</h3>
+        <p>评委的思路很简单：拿一个 Transformer 处理完整个序列，取<strong>最后一个 token 的隐状态</strong>，过一个线性层，输出一个标量分数。</p>
+
+        <div class="formula-box">
+            $$ \text{reward} = W_{\text{score}} \cdot h_{\text{last}} \in \mathbb{R} $$
+            <br>其中 $$ h_{\text{last}} = \text{Transformer}(\text{input\_ids})[:, -1, :] $$
+        </div>
+
+        <p>为啥取最后一个 token？因为 Transformer 是自回归的，最后一个 token 能"看到"前面所有 token 的信息，所以它的隐状态就是整个序列的摘要。这就好比让你读完一篇文章，然后在文章末尾盖个章 —— 那个章的大小就是评委的分数。</p>
+
+        <h3>金牌陪练 (Critic Model)</h3>
+        <p>Critic 和 Reward 的结构几乎一模一样，但有个关键区别：</p>
+        <ul>
+            <li><strong>Reward Model</strong>：取最后一个 token → 输出<strong>一个</strong>标量（整句话的总分）</li>
+            <li><strong>Critic Model</strong>：对<strong>每个 token 位置</strong>都输出一个标量（每个位置的价值）</li>
+        </ul>
+
+        <div class="formula-box">
+            $$ V(s_t) = W_{\text{value}} \cdot h_t \in \mathbb{R}, \quad \forall t = 0, 1, \dots, T $$
+        </div>
+
+        <p>Critic 的任务是"预测未来"—— 在每个位置，它预估从这个位置开始，未来总共能拿到多少奖励。这就像一个陪练在旁边看着你打拳，每出一拳就小声说："这拳能得 0.8 分"</p>
+
+        <h3>近似 KL 散度</h3>
+        <p>代码里有个超简洁的 KL 计算：</p>
+        <div class="formula-box">
+            $$ \text{KL}_t \approx \log \pi_\theta(a_t|s_t) - \log \pi_{\text{ref}}(a_t|s_t) $$
+        </div>
+        <p>这其实是 <strong>重要性采样下的 KL 散度近似</strong>。真正的 KL 散度需要对整个分布求和，但在 RLHF 的实践中，用这个差值就足够了。当 Actor 偏离 Reference 越远，这个差值就越大，惩罚也越重。</p>
+
+        <!-- ===== 第二步：模型初始化 ===== -->
+        <h2 id="step2">第二步：模型初始化 —— 四个天王各就各位</h2>
+
+        <div class="tip-box">
+            <strong>⚙️ 超参数速查：</strong>
+            <ul style="margin-top:8px;">
+                <li><code>clip_eps = 0.2</code> — PPO 的裁剪范围，限制策略更新幅度</li>
+                <li><code>kl_coef = 0.05</code> — KL 惩罚系数 β，防止跑太偏</li>
+                <li><code>gamma = 0.95</code> — 折扣因子，未来的奖励打个折</li>
+                <li><code>lr_actor = 1e-6</code> — Actor 学习率（小步慢走）</li>
+                <li><code>lr_critic = 5e-6</code> — Critic 学习率（可以跑快点）</li>
+            </ul>
+        </div>
+
+        <h3>Actor = SFT 模型</h3>
+        <p>Actor 直接加载之前 SFT 阶段训练好的模型。它已经"会说人话"了，但说得好不好，还得评委说了算。</p>
+
+        <h3>Reference = SFT 的冻结副本</h3>
+        <p>关键操作：<code>param.requires_grad = False</code></p>
+        <p>师爷一旦冻住，就再也不会变了。它的唯一使命是：提供一个"原来的样子"作为基准，用来算 KL 惩罚。如果 Actor 跑太偏，KL 就会飙升，惩罚就来。</p>
+
+        <div class="key-point">
+            <strong>🎯 为什么要冻结 Reference？</strong>
+            <p style="margin-top:6px;">想象你是一个刚学画画的人（Actor），旁边坐着你的老师（Reference）。老师是不会变的 —— 他就是你学习的标准。如果你画得跟老师越来越不像，就说明你在"跑偏"，需要被拉回来。KL 惩罚就是这个"拉回来"的绳子。</p>
+        </div>
+
+        <h3>Reward Model</h3>
+        <p>这里用的是简化版。实际生产中，Reward Model 需要在人工标注数据上单独训练。它就像一个考官，阅卷无数，已经形成了稳定的评分标准。</p>
+
+        <h3>Critic = 随机初始化</h3>
+        <p>注意！Critic 是<strong>随机初始化</strong>的，没有加载任何预训练权重。这意味着它一开始是"瞎子"，预测的价值完全不准。但没关系，它会在训练过程中快速学会。</p>
+
+        <div class="warning-box">
+            ⚠️ <strong>为什么 Critic 不能用 SFT 模型初始化？</strong><br>
+            因为 Critic 的任务和 Actor 完全不同。Actor 输出的是"下一个词的概率分布"，Critic 输出的是"当前状态的未来回报"。强行用 SFT 权重初始化 Critic，反而可能给一个错误的起点。
+        </div>
+
+        <!-- ===== 第三步：采样与记录 ===== -->
+        <h2 id="step3">第三步：采样与记录 —— Actor 写作业，大家围观</h2>
+
+        <p>这一段是整个 PPO 训练的"数据采集"阶段。Actor 开始自回归地生成回答，与此同时，三个旁观者各司其职：</p>
+
+        <ol>
+            <li><strong>Actor</strong> 自己算出每个 token 的 <code>log_prob</code> —— "我对这个词有多确信？"</li>
+            <li><strong>Reference</strong> 也算出每个 token 的 <code>ref_log_prob</code> —— "按照老规矩，这个词的概率是多少？"</li>
+            <li><strong>Critic</strong> 预测每个位置的 <code>value</code> —— "从这里开始，未来能拿多少分？"</li>
+        </ol>
+
+        <div class="formula-box">
+            <strong>采样过程：</strong>
+            $$ a_t \sim \pi_\theta(\cdot | s_t) $$
+            $$ \log \pi_\theta(a_t|s_t) \leftarrow \text{Actor 的 log\_prob} $$
+            $$ \log \pi_{\text{ref}}(a_t|s_t) \leftarrow \text{Reference 的 log\_prob} $$
+            $$ V(s_t) \leftarrow \text{Critic 的预测值} $$
+        </div>
+
+        <div class="tip-box">
+            <strong>🔍 为什么要用 <code>torch.no_grad()</code>？</strong><br>
+            这里只是"采样"，不是"训练"。我们不需要计算梯度，只需要记录数据。关掉梯度计算可以节省大量显存和时间。就像考试时先发试卷（采样），收上来之后再批改（训练）。
+        </div>
+
+        <p>整个生成过程就像一个流水线：Actor 每写出一个词，旁边的三个"记录员"立刻记下自己的笔记。等整句话写完了，所有数据都准备好了，就可以进入下一阶段。</p>
+
+        <!-- ===== 第四步：奖励计算 ===== -->
+        <h2 id="step4">第四步：奖励计算 —— 打分 + 惩罚</h2>
+
+        <p>现在回答写完了，该算奖励了。这里的奖励分两部分：</p>
+
+        <h3>1. Reward Model 打分（最后一步）</h3>
+        <p>评委端详完整个回答，给出一个总分 <code>reward</code>。这个分数只在最后一步加上去。</p>
+
+        <h3>2. KL 惩罚（每一步）</h3>
+        <p>师爷在每一步都要检查：Actor 和 Reference 差多少？差得越多，惩罚越重。</p>
+
+        <div class="formula-box">
+            $$ r_t = \begin{cases} -\beta \cdot (\log \pi_\theta(a_t|s_t) - \log \pi_{\text{ref}}(a_t|s_t)) & \text{if } t < T \\ -\beta \cdot (\log \pi_\theta(a_T|s_T) - \log \pi_{\text{ref}}(a_T|s_T)) + R_{\text{reward}} & \text{if } t = T \end{cases} $$
+        </div>
+
+        <p>用人话说：</p>
+        <ul>
+            <li><strong>中间的每一步</strong>：只有惩罚（KL penalty），没有奖励。每一步都扣分。</li>
+            <li><strong>最后一步</strong>：加上 Reward Model 的总分。如果回答好，这一步的奖励可以很大，足以弥补之前的扣分。</li>
+        </ul>
+
+        <div class="key-point">
+            <strong>🎯 为什么要这样分配奖励？</strong>
+            <p style="margin-top:6px;">因为 Reward Model 是一个整体评分器，它不知道哪个词贡献了多少分。所以把总分"压"到最后一步，让前面每步只承受 KL 惩罚。这就像考试的阅读理解 —— 老师最后给一个总分，但你每写一句话都在"偏离标准答案"（KL 惩罚）。</p>
+        </div>
+
+        <!-- ===== 第五步：优势计算 ===== -->
+        <h2 id="step5">第五步：优势计算 —— 哪步走得好，哪步走臭了</h2>
+
+        <h3>回报 G_t（从后往前累加）</h3>
+        <p>回报是"从第 t 步开始，未来所有奖励的折扣总和"：</p>
+
+        <div class="formula-box">
+            $$ G_t = \sum_{k=t}^{T} \gamma^{k-t} \cdot r_k $$
+        </div>
+
+        <p>代码里用了一个漂亮的倒序循环：</p>
+        <div class="formula-box">
+            <code>G = r_T + γ · G</code>，从后往前迭代
+        </div>
+
+        <p>折扣因子 <code>γ = 0.95</code> 的意思是："未来的奖励不如眼前的值钱"。就像你欠朋友 100 块，如果下个月还，你愿意；如果一年后还，你可能觉得"算了吧"。</p>
+
+        <h3>优势 A_t</h3>
+        <p>优势 = 实际回报 - Critic 预测的价值：</p>
+
+        <div class="formula-box">
+            $$ A_t = G_t - V(s_t) $$
+        </div>
+
+        <ul>
+            <li><strong>A_t > 0</strong>：这步走得比预期好！应该鼓励。</li>
+            <li><strong>A_t < 0</strong>：这步走得比预期差。应该惩罚。</li>
+            <li><strong>A_t ≈ 0</strong>：意料之中，不功不过。</li>
+        </ul>
+
+        <div class="key-point">
+            <strong>🎯 为什么不用 G_t 直接训练，而要算优势？</strong>
+            <p style="margin-top:6px;">直接用 G_t 训练的话，梯度的方差会很大。加入 Critic 的预测 V(s_t) 作为基线（baseline），可以大幅降低方差，让训练更稳定。这就像高考排名 —— 看绝对分数意义不大，看"比预期高了多少"才更能说明你的进步。</p>
+        </div>
+
+        <!-- ===== 第六步：PPO 更新 ===== -->
+        <h2 id="step6">第六步：PPO 更新 —— 核心中的核心</h2>
+
+        <h3>重要性采样比率</h3>
+        <p>为什么需要 ratio？因为我们在用<strong>旧策略</strong>生成的数据来训练<strong>新策略</strong>。新旧策略的概率之比就是 importance sampling 的权重：</p>
+
+        <div class="formula-box">
+            $$ \rho_t = \frac{\pi_\theta(a_t|s_t)}{\pi_{\theta_{\text{old}}}(a_t|s_t)} = \exp(\log \pi_\theta(a_t|s_t) - \log \pi_{\theta_{\text{old}}}(a_t|s_t)) $$
+        </div>
+
+        <p>用人话说：ratio 就是"新策略相对于旧策略的概率变化倍数"。</p>
+        <ul>
+            <li>ratio = 1：新旧策略没变</li>
+            <li>ratio > 1：新策略觉得这个词的概率应该更大</li>
+            <li>ratio < 1：新策略觉得这个词的概率应该更小</li>
+        </ul>
+
+        <h3>Clip 损失 —— PPO 的灵魂</h3>
+
+        <div class="formula-box">
+            $$ \mathcal{L}^{\text{CLIP}} = -\min\Big(\rho_t \cdot A_t,\ \text{clip}(\rho_t, 1-\epsilon, 1+\epsilon) \cdot A_t\Big) $$
+        </div>
+
+        <p>这是 PPO 最精妙的地方。它用 <code>clip</code> 限制了策略更新的幅度：</p>
+
+        <ul>
+            <li>当 <strong>A_t > 0</strong>（好动作）：ratio 可以上涨，但被 clip 在 1+ε 以内。意思是"鼓励你多做，但别太过分"。</li>
+            <li>当 <strong>A_t < 0</strong>（坏动作）：ratio 可以下降，但被 clip 在 1-ε 以内。意思是"让你少做，但也别一下子砍死"。</li>
+        </ul>
+
+        <div class="tip-box">
+            <strong>✂️ 为什么叫 "Clipped PPO"？</strong><br>
+            因为它通过 clip 操作，把策略更新限制在一个"信任区域"内。就像开车时的限速 —— 你可以加速（优化策略），但不能超速（clip 防止更新太猛导致崩溃）。ε = 0.2 就是限速值。
+        </div>
+
+        <h3>Critic 更新（MSE 损失）</h3>
+        <p>Critic 的更新就简单多了 —— 最小化预测价值与实际回报之间的均方误差：</p>
+
+        <div class="formula-box">
+            $$ \mathcal{L}^{\text{Critic}} = \frac{1}{T}\sum_{t=1}^{T} \left( V(s_t) - G_t \right)^2 $$
+        </div>
+
+        <p>Critic 的目标是让预测越来越准。当它的预测准了，优势 A_t 的估计也就更可靠，Actor 的更新方向也就更正确。这是一个正向循环。</p>
+
+        <div class="key-point">
+            <strong>🎯 两个优化器，两个损失，同步更新</strong>
+            <p style="margin-top:6px;">Actor 用 PPO Clip 损失更新（优化策略），Critic 用 MSE 损失更新（优化价值估计）。两者同时进行，互相促进。这就像双人舞 —— 一个人负责表演（Actor），一个人负责评分（Critic），两人都在进步。</p>
+        </div>
+
+        <!-- ===== 总结 ===== -->
+        <h2 id="summary">总结：关键要点回顾</h2>
+
+        <ul class="summary-list">
+            <li>
+                <strong>1. 四个模型各司其职</strong><br>
+                Actor（策略优化）、Reference（KL 基准）、Reward（奖励打分）、Critic（价值估计）。
+            </li>
+            <li>
+                <strong>2. 奖励 = KL 惩罚 + Reward 打分</strong><br>
+                每步都扣 KL 罚分，最后一步加上 Reward 总分。保证模型不跑偏的同时，追求高质量回答。
+            </li>
+            <li>
+                <strong>3. 优势估计 A_t = G_t - V(s_t)</strong><br>
+                用折扣回报 G_t 减去 Critic 的预测 V(s_t)。方差更低，训练更稳。
+            </li>
+            <li>
+                <strong>4. PPO Clip 防止更新过猛</strong><br>
+                ratio 被限制在 [1-ε, 1+ε] 之间，策略变化在"信任区域"内，不会突然崩溃。
+            </li>
+            <li>
+                <strong>5. Critic 随机初始化</strong><br>
+                从零学起，不需要预训练。通过 MSE 损失快速学会预测回报。
+            </li>
+            <li>
+                <strong>6. 重要性采样 ratio</strong><br>
+                用旧策略生成的数据训练新策略，ratio 是关键的修正因子。
+            </li>
+        </ul>
+
+        <div class="tip-box" style="margin-top:20px;">
+            <strong>🎉 全流程回顾：</strong>
+            <p style="margin-top:8px;">
+            <code>Prompt</code> → Actor 自回归生成回答 → 同时记录 log_prob / ref_log_prob / value → 
+            Reward Model 打总分 → 每步加 KL 惩罚 → 计算 G_t 和 A_t → 
+            PPO Clip 更新 Actor → MSE 更新 Critic → 循环！
+            </p>
+        </div>
+
+        <div class="formula-box" style="margin-top:20px;">
+            <strong>所有公式一览：</strong>
+            $$ \text{KL}_t \approx \log \pi_\theta(a_t|s_t) - \log \pi_{\text{ref}}(a_t|s_t) $$
+            $$ r_t = -\beta \cdot \text{KL}_t + \mathbb{1}_{t=T} \cdot R $$
+            $$ G_t = r_t + \gamma \cdot G_{t+1} $$
+            $$ A_t = G_t - V(s_t) $$
+            $$ \rho_t = \frac{\pi_\theta(a_t|s_t)}{\pi_{\theta_{\text{old}}}(a_t|s_t)} $$
+            $$ \mathcal{L}^{\text{CLIP}} = -\min\left( \rho_t A_t,\ \text{clip}(\rho_t, 1-\epsilon, 1+\epsilon) A_t \right) $$
+            $$ \mathcal{L}^{\text{Critic}} = \frac{1}{T}\sum_t (V(s_t) - G_t)^2 $$
+        </div>
+
+    </div>
+</div>
+
+</body>
+</html>

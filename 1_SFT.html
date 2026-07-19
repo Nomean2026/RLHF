@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SFT · 有监督微调 —— 一切的起点</title>
+    <script>
+        MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            },
+            svg: { fontCache: 'global' }
+        };
+    </script>
+    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+    <style>
+        :root {
+            --bg: #fffdf7;
+            --card-bg: #ffffff;
+            --text: #3a3226;
+            --accent-sft: #e17055;
+            --accent-sft-light: #fab1a0;
+            --border: #e0d5c7;
+            --shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+            --radius: 20px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            padding: 24px 16px 80px;
+            background-image: radial-gradient(circle at 20% 10%, #fff3e0 0%, transparent 50%),
+                radial-gradient(circle at 80% 90%, #fce4ec 0%, transparent 50%),
+                radial-gradient(circle at 50% 50%, #fff8e1 0%, transparent 40%);
+            background-attachment: fixed;
+        }
+        .container { max-width: 950px; margin: 0 auto; display: flex; flex-direction: column; gap: 28px; }
+
+        .hero {
+            text-align: center; padding: 40px 24px 20px;
+            background: var(--card-bg); border-radius: var(--radius);
+            box-shadow: var(--shadow); border: 2px dashed var(--accent-sft);
+            position: relative; overflow: hidden;
+        }
+        .hero::before {
+            content: '📖'; position: absolute; top: -20px; left: 20px;
+            font-size: 48px; opacity: 0.6; animation: float 3s ease-in-out infinite;
+        }
+        .hero::after {
+            content: '🎓'; position: absolute; bottom: -15px; right: 25px;
+            font-size: 44px; opacity: 0.6; animation: float 3s ease-in-out 1s infinite;
+        }
+        @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-14px)} }
+        .hero h1 {
+            font-size: 2.6em; font-weight: 800;
+            background: linear-gradient(135deg, #e17055, #fab1a0, #e17055);
+            background-size: 200% 200%;
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text; animation: gradientShift 4s ease infinite; margin-bottom: 10px;
+        }
+        @keyframes gradientShift { 0%,100%{background-position:0% 50%} 50%{background-position:100% 50%} }
+        .hero .subtitle { font-size: 1.15em; color: #7a6e5d; font-weight: 500; }
+
+        .card {
+            background: var(--card-bg); border-radius: var(--radius);
+            padding: 28px 30px; box-shadow: var(--shadow); border: 1px solid var(--border);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .card:hover { transform: translateY(-3px); box-shadow: 0 8px 30px rgba(0,0,0,0.1); }
+        .card h2 {
+            font-size: 1.6em; margin-bottom: 16px;
+            display: flex; align-items: center; gap: 10px; color: #5a2d0c;
+        }
+        .card h3 { font-size: 1.25em; margin: 18px 0 10px; color: #6d3a1f; }
+
+        .formula-box {
+            background: #fdf8f0; border-radius: 14px;
+            padding: 20px 24px; margin: 14px 0; overflow-x: auto;
+            border-left: 5px solid var(--accent-sft); font-size: 1.05em;
+        }
+        .formula-note { font-size: 0.9em; color: #7a6b8b; margin-top: 8px; font-style: italic; }
+
+        .code-box {
+            background: #282c34; border-radius: 14px;
+            padding: 20px 24px; margin: 14px 0; overflow-x: auto;
+            border-left: 5px solid var(--accent-sft); font-size: 0.9em;
+        }
+        .code-box pre { margin: 0; white-space: pre; font-family: 'Fira Code','Cascadia Code','Courier New',monospace; line-height: 1.6; }
+        .code-box code { font-family: inherit; color: #e6e6e6; }
+        .code-comment { color: #6a9955; }
+        .code-keyword { color: #c586c0; }
+        .code-func { color: #dcdcaa; }
+        .code-var { color: #9cdcfe; }
+        .code-op { color: #d4d4d4; }
+
+        .tip-box {
+            background: #fff3e0; border: 1px solid #ffe0b2;
+            border-radius: 14px; padding: 16px 20px; margin: 14px 0; font-weight: 500; color: #5a2d0c;
+        }
+        .tip-box strong { color: #e17055; }
+
+        .step-list { list-style: none; counter-reset: step; }
+        .step-list li {
+            counter-increment: step; position: relative;
+            padding: 10px 0 10px 50px; margin-bottom: 12px;
+            background: #fdfaf5; border-radius: 12px; font-weight: 500;
+        }
+        .step-list li::before {
+            content: counter(step); position: absolute; left: 10px; top: 6px;
+            width: 30px; height: 30px; background: var(--accent-sft); color: white;
+            border-radius: 50%; text-align: center; line-height: 30px;
+            font-weight: 800; font-size: 0.85em;
+        }
+
+        @media (max-width: 600px) {
+            .hero h1 { font-size: 1.8em; }
+            .card { padding: 18px 14px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+
+        <div class="hero">
+            <h1>📖 SFT · 有监督微调</h1>
+            <p class="subtitle">预训练才子的"私教课"——从"满嘴跑火车"到"好好说话"</p>
+        </div>
+
+        <!-- SFT 是什么 -->
+        <div class="card">
+            <h2>🎓 SFT 是什么？</h2>
+            <p>预训练模型读了海量文本，知道语言的统计规律，但<strong>不会"按指令办事"</strong>。你问它"帮我写首诗"，它可能继续补全网页文本。</p>
+            <p><strong>SFT（Supervised Fine-Tuning）</strong>就是用人工标注的"指令-回答"对，教模型<strong>学会对话格式和指令遵循</strong>。</p>
+            <div class="tip-box">
+                <strong>🍜 通俗比喻：</strong>预训练模型是一个读了万卷书的才子，才华横溢但说话不着调。SFT 就是请了一位私教，拿标准答案一句句教他："人家问你好，你得说'你好！有什么可以帮您？'而不是继续背课文。"
+            </div>
+            <p style="margin-top:14px;">SFT 是 RLHF 家族所有后续方法的<strong>起点</strong>——PPO 的 Actor 从 SFT 热启动，DPO 的 Policy 从 SFT 开始，GRPO 同理。没有 SFT，后面的强化学习就是"教一个不会说话的模型写文章"。</p>
+        </div>
+
+        <!-- 核心思想 -->
+        <div class="card">
+            <h2>💡 核心思想：只教该教的</h2>
+            <p>一段对话数据长这样：</p>
+            <div class="formula-box">
+                <code>&lt;|user|&gt;帮我翻译这句话&lt;|assistant|&gt;好的，请把原文发给我。</code>
+            </div>
+            <p>关键设计：<strong>只对 assistant 的回复部分计算损失</strong>，user 的输入被标记为忽略（<code>-100</code>）。这样模型只学"怎么回答"，不学"怎么提问"。</p>
+
+            <h3>📐 损失函数</h3>
+            <div class="formula-box">
+                $$ \mathcal{L}_{\text{SFT}} = -\sum_{t \in \text{assistant}} \log P_\theta(y_t \mid y_{&lt;t}, x) $$
+            </div>
+            <p class="formula-note">就是标准的交叉熵损失，只不过 mask 掉了 user 部分的 token。</p>
+
+            <h3>🏗️ 训练流程</h3>
+            <ol class="step-list">
+                <li><strong>准备数据：</strong>收集高质量的指令-回答对，格式化为特殊 token 分隔的对话序列。</li>
+                <li><strong>构建标签：</strong>将 user 部分标记为 <code>-100</code>（忽略），只保留 assistant 回复作为训练目标。</li>
+                <li><strong>加载预训练模型：</strong>从预训练 checkpoint 热启动，模型已经"会说话"，只是"不听话"。</li>
+                <li><strong>微调训练：</strong>用较小的学习率（如 $1\text{e-}5$）训练几个 epoch，让模型学会按指令回答。</li>
+                <li><strong>保存模型：</strong>产出 SFT 模型（后续作为 Actor/Policy 初始）和冻结副本（作为 Reference）。</li>
+            </ol>
+        </div>
+
+        <!-- 代码片段 -->
+        <div class="card">
+            <h2>💻 核心代码</h2>
+            <div class="code-box">
+                <pre><code><span class="code-comment"># 只对 assistant 部分计算损失</span>
+<span class="code-var">logits</span> <span class="code-op">=</span> <span class="code-var">model</span>(<span class="code-var">x</span>)  <span class="code-comment"># [B, S, vocab_size]</span>
+<span class="code-var">loss</span> <span class="code-op">=</span> <span class="code-var">F</span>.<span class="code-func">cross_entropy</span>(
+    <span class="code-var">logits</span>.<span class="code-func">view</span>(<span class="code-op">-</span><span class="code-op">1</span>, <span class="code-var">vocab_size</span>),
+    <span class="code-var">labels</span>.<span class="code-func">view</span>(<span class="code-op">-</span><span class="code-op">1</span>),
+    <span class="code-var">ignore_index</span><span class="code-op">=</span><span class="code-op">-</span><span class="code-op">100</span>  <span class="code-comment"># user 部分不参与梯度</span>
+)</code></pre>
+            </div>
+            <p class="formula-note">标签中 <code>-100</code> 的位置会被 PyTorch 自动忽略，梯度只从 assistant 的回复中产生。</p>
+        </div>
+
+        <!-- SFT 与后续方法的关系 -->
+        <div class="card">
+            <h2>🔗 SFT 在 RLHF 家族中的位置</h2>
+            <table class="styled-table">
+                <thead>
+                    <tr><th>后续方法</th><th>SFT 的角色</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><strong>PPO</strong></td><td>SFT 模型作为 Actor 热启动；冻一份当 Reference</td></tr>
+                    <tr><td><strong>DPO</strong></td><td>SFT 模型作为 Policy 初始；冻一份当 Reference</td></tr>
+                    <tr><td><strong>GRPO</strong></td><td>SFT 模型作为 Policy 初始；冻一份当 Reference</td></tr>
+                </tbody>
+            </table>
+            <div class="tip-box">
+                <strong>⚠️ SFT 的局限：</strong>SFT 只能"模仿"人类标注的答案，无法<strong>超越</strong>标注质量。如果标注员的回答只有 70 分，SFT 模型最多也到 70 分。这就是为什么我们需要 PPO、DPO、GRPO 来进一步对齐——它们的目标是让模型<strong>探索出比标注更好的策略</strong>。
+            </div>
+        </div>
+
+        <!-- 终极口诀 -->
+        <div class="card" style="border:3px solid var(--accent-sft); background: linear-gradient(135deg, #fff3e0, #fffef9);">
+            <h2>🧘 SFT 终极口诀</h2>
+            <ol style="font-size:1.05em; line-height:2;">
+                <li>预训练模型<strong>会说话但不听话</strong></li>
+                <li>收集<strong>指令-回答对</strong>，格式化为特殊 token 序列</li>
+                <li>标签中 user 部分标 <code>-100</code>，<strong>只对 assistant 算损失</strong></li>
+                <li>小学习率微调几个 epoch</li>
+                <li>产出 <strong>SFT 模型</strong>（可训练）和 <strong>Reference 模型</strong>（冻结）</li>
+                <li>SFT 是所有后续对齐方法的<strong>起点</strong> 🚀</li>
+            </ol>
+            <p style="text-align:center; margin-top:14px; font-weight:700; color: var(--accent-sft);">
+                SFT = 预训练模型 + 标准答案 + 只教回答 = 好好说话！
+            </p>
+        </div>
+
+        <div style="text-align:center; color:#b0a090; font-size:0.85em; padding:10px;">
+            📖 SFT：万丈高楼平地起。先学会好好说话，再谈强化学习的诗和远方。
+        </div>
+    </div>
+</body>
+</html>

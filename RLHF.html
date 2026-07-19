@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RLHF 算法家族 · 从拜师到比武的进化史</title>
+    <!-- MathJax 公式渲染 -->
+    <script>
+        MathJax = {
+            tex: {
+                inlineMath: [
+                    ['$', '$'],
+                    ['\\(', '\\)']
+                ],
+                displayMath: [
+                    ['$$', '$$'],
+                    ['\\[', '\\]']
+                ]
+            },
+            svg: {
+                fontCache: 'global'
+            }
+        };
+    </script>
+    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js">
+    </script>
+    <style>
+        :root {
+            --bg: #fffdf7;
+            --card-bg: #ffffff;
+            --text: #3a3226;
+            --accent-sft: #e17055;
+            --accent-ppo: #d63031;
+            --accent-dpo: #6c5ce7;
+            --accent-grpo: #0984e3;
+            --border: #e0d5c7;
+            --shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+            --radius: 20px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            padding: 24px 16px 80px;
+            background-image: radial-gradient(circle at 20% 10%, #f3efff 0%, transparent 50%),
+                radial-gradient(circle at 80% 90%, #e8f5e9 0%, transparent 50%),
+                radial-gradient(circle at 50% 50%, #fff3e0 0%, transparent 40%);
+            background-attachment: fixed;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 28px;
+        }
+
+        /* 标题区域 */
+        .hero {
+            text-align: center;
+            padding: 50px 24px 30px;
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 2px dashed #b2bec3;
+            position: relative;
+            overflow: hidden;
+        }
+        .hero::before {
+            content: '🚀';
+            position: absolute;
+            top: -20px;
+            left: 20px;
+            font-size: 48px;
+            opacity: 0.6;
+            animation: float 3s ease-in-out infinite;
+        }
+        .hero::after {
+            content: '🧬';
+            position: absolute;
+            bottom: -15px;
+            right: 25px;
+            font-size: 44px;
+            opacity: 0.6;
+            animation: float 3s ease-in-out 1s infinite;
+        }
+        @keyframes float {
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-14px);
+            }
+        }
+        .hero h1 {
+            font-size: 2.8em;
+            font-weight: 800;
+            background: linear-gradient(135deg, #e17055, #6c5ce7, #0984e3);
+            background-size: 200% 200%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: gradientShift 4s ease infinite;
+            margin-bottom: 10px;
+        }
+        @keyframes gradientShift {
+            0%,
+            100% {
+                background-position: 0% 50%;
+            }
+            50% {
+                background-position: 100% 50%;
+            }
+        }
+        .hero .subtitle {
+            font-size: 1.2em;
+            color: #636e72;
+            font-weight: 500;
+        }
+
+        /* 卡片 */
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 28px 30px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+        }
+        .card h2 {
+            font-size: 1.8em;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* 算法卡片网格 */
+        .algo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 18px;
+            margin: 20px 0;
+        }
+        .algo-card {
+            background: #fff;
+            border-radius: 16px;
+            padding: 22px 18px;
+            text-align: center;
+            box-shadow: var(--shadow);
+            border: 2px solid transparent;
+            transition: all 0.3s;
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+        .algo-card:hover {
+            transform: scale(1.04);
+            border-color: var(--hover-color, #ccc);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+        .algo-card .emoji {
+            font-size: 3em;
+            display: block;
+            margin-bottom: 8px;
+        }
+        .algo-card .name {
+            font-weight: 800;
+            font-size: 1.3em;
+            margin-bottom: 6px;
+        }
+        .algo-card .desc {
+            font-size: 0.85em;
+            color: #636e72;
+        }
+        .algo-card .tag {
+            display: inline-block;
+            font-size: 0.75em;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-top: 8px;
+        }
+
+        /* 对比表格 */
+        .compare-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 16px 0;
+            font-size: 0.9em;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+        .compare-table thead th {
+            background: #2d3436;
+            color: white;
+            padding: 12px 8px;
+            font-weight: 700;
+            text-align: center;
+        }
+        .compare-table tbody td {
+            padding: 10px 8px;
+            text-align: center;
+            border-bottom: 1px solid #f0e8da;
+            background: #fffef9;
+        }
+        .compare-table tbody tr:hover td {
+            background: #f3efff;
+        }
+
+        .tip-box {
+            background: #fffde7;
+            border: 1px solid #ffe082;
+            border-radius: 14px;
+            padding: 16px 20px;
+            margin: 14px 0;
+            font-weight: 500;
+        }
+
+        /* 按钮 */
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            border-radius: 30px;
+            font-weight: 700;
+            text-decoration: none;
+            color: white;
+            margin: 5px;
+            transition: transform 0.2s;
+        }
+        .btn:hover {
+            transform: scale(1.05);
+        }
+        .btn-sft {
+            background: #e17055;
+        }
+        .btn-ppo {
+            background: #d63031;
+        }
+        .btn-dpo {
+            background: #6c5ce7;
+        }
+        .btn-grpo {
+            background: #0984e3;
+        }
+
+        @media (max-width: 600px) {
+            .hero h1 {
+                font-size: 2em;
+            }
+            .card {
+                padding: 18px 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+
+        <!-- 首页标题 -->
+        <div class="hero">
+            <h1>🧬 RLHF 算法家族进化史</h1>
+            <p class="subtitle">从“拜师学艺”到“组内比武”——大模型对齐技术的四次飞跃</p>
+        </div>
+
+        <!-- 发展脉络 -->
+        <div class="card">
+            <h2>📜 发展脉络：一条不断简化的路</h2>
+            <p>为了让大语言模型“听话”，研究者们走过了一条从复杂到简单、从多模型到单模型的道路。下面是这个家族的四个关键成员：</p>
+            <div class="algo-grid">
+                <a href="1_SFT.html" class="algo-card" style="--hover-color:#e17055;">
+                    <span class="emoji">📖</span>
+                    <div class="name">SFT</div>
+                    <div class="desc">有监督微调<br>“拜师学艺”</div>
+                    <span class="tag" style="background:#fce4e4;color:#c0392b;">第一步</span>
+                </a>
+                <a href="1_PPO.html" class="algo-card" style="--hover-color:#d63031;">
+                    <span class="emoji">🎭</span>
+                    <div class="name">PPO</div>
+                    <div class="desc">四大天王<br>“评委+陪练”</div>
+                    <span class="tag" style="background:#f8d7da;color:#721c24;">经典 RLHF</span>
+                </a>
+                <a href="1_DPO.html" class="algo-card" style="--hover-color:#6c5ce7;">
+                    <span class="emoji">🎯</span>
+                    <div class="name">DPO</div>
+                    <div class="desc">直接偏好优化<br>“二人转”</div>
+                    <span class="tag" style="background:#e8e0ff;color:#4a3f6b;">扔掉评委</span>
+                </a>
+                <a href="1_GRPO.html" class="algo-card" style="--hover-color:#0984e3;">
+                    <span class="emoji">🏆</span>
+                    <div class="name">GRPO</div>
+                    <div class="desc">组内相对优化<br>“比武排名”</div>
+                    <span class="tag" style="background:#d4edff;color:#0c4a6e;">最新力作</span>
+                </a>
+            </div>
+            <p style="margin-top:16px;">SFT 是基础，PPO 引入强化学习但需要四个模型，DPO 抛弃了奖励模型和评论家，GRPO 又找回了奖励模型却用“组内对比”取代了评论家。每一步都在<strong>降低训练复杂度、提升稳定性</strong>。</p>
+        </div>
+
+        <!-- 详细对比 -->
+        <div class="card">
+            <h2>⚖️ 四兄弟全方位对比</h2>
+            <table class="compare-table">
+                <thead>
+                    <tr>
+                        <th>维度</th>
+                        <th>SFT</th>
+                        <th>PPO</th>
+                        <th>DPO</th>
+                        <th>GRPO</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>模型数量</strong></td>
+                        <td>1 个</td>
+                        <td>4 个<br>(Actor, Ref, Reward, Critic)</td>
+                        <td>2 个<br>(Policy, Ref)</td>
+                        <td>2~3 个<br>(Policy, Ref, Reward)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>需要奖励模型</strong></td>
+                        <td>❌</td>
+                        <td>✅ 必须</td>
+                        <td>❌</td>
+                        <td>✅ 需要（但可较小）</td>
+                    </tr>
+                    <tr>
+                        <td><strong>需要 Critic</strong></td>
+                        <td>❌</td>
+                        <td>✅ 必须（与 Actor 等大）</td>
+                        <td>❌</td>
+                        <td>❌ <strong>（核心卖点）</strong></td>
+                    </tr>
+                    <tr>
+                        <td><strong>训练方式</strong></td>
+                        <td>监督学习</td>
+                        <td>在线强化学习</td>
+                        <td>离线偏好对比</td>
+                        <td>在线组内对比</td>
+                    </tr>
+                    <tr>
+                        <td><strong>数据需求</strong></td>
+                        <td>对话对</td>
+                        <td>prompt + 奖励信号</td>
+                        <td>偏好对 (chosen/rejected)</td>
+                        <td>prompt + 奖励模型</td>
+                    </tr>
+                    <tr>
+                        <td><strong>训练稳定性</strong></td>
+                        <td>⭐⭐⭐⭐⭐</td>
+                        <td>⭐⭐</td>
+                        <td>⭐⭐⭐⭐</td>
+                        <td>⭐⭐⭐⭐</td>
+                    </tr>
+                    <tr>
+                        <td><strong>内存开销</strong></td>
+                        <td>低</td>
+                        <td>极高</td>
+                        <td>低</td>
+                        <td>中</td>
+                    </tr>
+                    <tr>
+                        <td><strong>代表论文</strong></td>
+                        <td>—</td>
+                        <td>InstructGPT (2022)</td>
+                        <td>DPO (2023)</td>
+                        <td>DeepSeekMath (2024)</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 优劣与适用场景 -->
+        <div class="card">
+            <h2>🎯 各自优劣与适用场景</h2>
+
+            <h3 style="color:#e17055;">📖 SFT — 有监督微调</h3>
+            <p><strong>优势：</strong>最简单直接，训练稳定，不需要额外模型。<br>
+                <strong>劣势：</strong>仅模仿示范数据，无法超越人类标注质量，容易“背答案”。<br>
+                <strong>适用：</strong>作为所有后续方法的<strong>起点</strong>，快速让模型学会对话格式和基本指令遵循。</p>
+
+            <h3 style="color:#d63031;">🎭 PPO — 经典 RLHF</h3>
+            <p><strong>优势：</strong>理论上能探索出超越人类标注的策略，在线交互可不断改进。<br>
+                <strong>劣势：</strong>需要同时维护四个模型，内存和计算开销巨大；Critic 训练不稳定，超参数敏感。<br>
+                <strong>适用：</strong>有充足算力、需要精细控制生成质量的大厂（如 OpenAI 的 InstructGPT）。</p>
+
+            <h3 style="color:#6c5ce7;">🎯 DPO — 直接偏好优化</h3>
+            <p><strong>优势：</strong>无需奖励模型和 Critic，训练如监督般简单；数学上等价于 RLHF 的最优解。<br>
+                <strong>劣势：</strong>完全依赖离线偏好数据，无法在线探索；数据覆盖不足时泛化能力受限。<br>
+                <strong>适用：</strong>拥有高质量偏好数据集、追求训练简洁性的场景（很多开源模型的首选）。</p>
+
+            <h3 style="color:#0984e3;">🏆 GRPO — 组内相对优化</h3>
+            <p><strong>优势：</strong>保留了在线探索能力，却不需要 Critic；组内标准化天然稳定，对奖励尺度不敏感。<br>
+                <strong>劣势：</strong>仍需要奖励模型，且每步需采样多条轨迹，推理成本略高。<br>
+                <strong>适用：</strong>数学推理、代码生成等有明确奖励信号的领域，尤其适合 DeepSeek 这类追求效率的团队。</p>
+        </div>
+
+        <!-- 幽默比喻串联 -->
+        <div class="card">
+            <h2>🍜 一碗奶茶看懂进化史</h2>
+            <div class="tip-box">
+                <strong>SFT：</strong>师父教你做奶茶，你照猫画虎，学会了几种配方。<br>
+                <strong>PPO：</strong>请了美食评论家（Reward）和营养师（Critic），每做一杯就分析糖度、口感，慢慢调整。<br>
+                <strong>DPO：</strong>直接把顾客喜欢的和不喜欢的配方给你看，“照着这个方向改就对了”。<br>
+                <strong>GRPO：</strong>让你同时做四杯，内部PK，排名靠前的配方保留，靠后的淘汰——连营养师都省了。
+            </div>
+            <p style="text-align:center; margin-top:20px;">
+                点击下方按钮，深入探索每个算法的代码细节与数学原理 👇
+            </p>
+            <div style="text-align:center; margin-top:10px;">
+                <a href="2_SFT.html" class="btn btn-sft">📖 SFT 代码讲解</a>
+                <a href="2_PPO.html" class="btn btn-ppo">🎭 PPO 代码讲解</a>
+                <a href="2_DPO.html" class="btn btn-dpo">🎯 DPO 代码讲解</a>
+                <a href="2_GRPO.html" class="btn btn-grpo">🏆 GRPO 代码讲解</a>
+            </div>
+        </div>
+
+        <!-- 核心公式速览 -->
+        <div class="card">
+            <h2>📐 核心公式速览</h2>
+            <p><strong>PPO 裁剪损失：</strong></p>
+            <p>$$\mathcal{L}^{\text{CLIP}} = \mathbb{E}_t \left[ \min\left( \rho_t A_t, \text{clip}(\rho_t, 1-\epsilon, 1+\epsilon) A_t \right) \right]$$</p>
+            <p><strong>DPO 偏好损失：</strong></p>
+            <p>$$\mathcal{L}_{\text{DPO}} = -\mathbb{E}\left[ \log\sigma\left( \beta\log\frac{\pi_\theta(y_w)}{\pi_{\text{ref}}(y_w)} - \beta\log\frac{\pi_\theta(y_l)}{\pi_{\text{ref}}(y_l)} \right) \right]$$</p>
+            <p><strong>GRPO 组内优势：</strong></p>
+            <p>$$\hat{A}_i = \frac{r_i - \text{mean}(\{r\})}{\text{std}(\{r\})}, \quad \mathcal{L}^{\text{GRPO}} = -\frac{1}{\sum|y_i|}\sum_i\sum_t \min(\rho_{i,t}\hat{A}_i, \text{clip}(\rho_{i,t})\hat{A}_i)$$</p>
+        </div>
+
+        <!-- 页脚 -->
+        <div style="text-align:center; color:#b0a090; font-size:0.85em; padding:10px;">
+            🧬 RLHF 家族进化永不止步——或许明年又会诞生不需要奖励模型的 GRPO 变体呢！
+        </div>
+    </div>
+</body>
+</html>

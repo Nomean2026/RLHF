@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GRPO · 组内比武——不需要陪练的强化学习</title>
+    <!-- MathJax 公式渲染 -->
+    <script>
+        MathJax = {
+            tex: {
+                inlineMath: [
+                    ['$', '$'],
+                    ['\\(', '\\)']
+                ],
+                displayMath: [
+                    ['$$', '$$'],
+                    ['\\[', '\\]']
+                ]
+            },
+            svg: {
+                fontCache: 'global'
+            }
+        };
+    </script>
+    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js">
+    </script>
+    <style>
+        :root {
+            --bg: #fefdf7;
+            --card-bg: #ffffff;
+            --text: #3a3226;
+            --accent-grpo: #0984e3;
+            --accent-grpo-light: #74b9ff;
+            --accent-good: #00b894;
+            --accent-bad: #e17055;
+            --border: #e0d5c7;
+            --shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+            --radius: 20px;
+            --code-bg: #f8f9fa;
+            --highlight: #dfe6e9;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            padding: 24px 16px 80px;
+            background-image: radial-gradient(circle at 20% 10%, #e3f2fd 0%, transparent 50%),
+                radial-gradient(circle at 80% 90%, #e8f5e9 0%, transparent 50%),
+                radial-gradient(circle at 50% 50%, #fce4ec 0%, transparent 40%);
+            background-attachment: fixed;
+        }
+
+        .container {
+            max-width: 950px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 28px;
+        }
+
+        /* 标题区域 */
+        .hero {
+            text-align: center;
+            padding: 40px 24px 20px;
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 2px dashed var(--accent-grpo);
+            position: relative;
+            overflow: hidden;
+        }
+        .hero::before {
+            content: '🏆';
+            position: absolute;
+            top: -20px;
+            left: 20px;
+            font-size: 48px;
+            opacity: 0.6;
+            animation: float 3s ease-in-out infinite;
+        }
+        .hero::after {
+            content: '⚔️';
+            position: absolute;
+            bottom: -15px;
+            right: 25px;
+            font-size: 44px;
+            opacity: 0.6;
+            animation: float 3s ease-in-out 1s infinite;
+        }
+        @keyframes float {
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-14px);
+            }
+        }
+        .hero h1 {
+            font-size: 2.6em;
+            font-weight: 800;
+            background: linear-gradient(135deg, #0984e3, #74b9ff, #0984e3);
+            background-size: 200% 200%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: gradientShift 4s ease infinite;
+            margin-bottom: 10px;
+        }
+        @keyframes gradientShift {
+            0%,
+            100% {
+                background-position: 0% 50%;
+            }
+            50% {
+                background-position: 100% 50%;
+            }
+        }
+        .hero .subtitle {
+            font-size: 1.15em;
+            color: #7a6e5d;
+            font-weight: 500;
+        }
+
+        /* 卡片 */
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 28px 30px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+        }
+        .card h2 {
+            font-size: 1.6em;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #1e3799;
+        }
+        .card h3 {
+            font-size: 1.25em;
+            margin: 18px 0 10px;
+            color: #2c3e50;
+        }
+        .card p,
+        .card li {
+            color: #4a3f5c;
+        }
+
+        /* 公式 */
+        .formula-box {
+            background: #f0f8ff;
+            border-radius: 14px;
+            padding: 20px 24px;
+            margin: 14px 0;
+            overflow-x: auto;
+            border-left: 5px solid var(--accent-grpo);
+            font-size: 1.05em;
+        }
+        .formula-box.important {
+            background: #fff7e6;
+            border-left-color: #f39c12;
+        }
+        .formula-note {
+            font-size: 0.9em;
+            color: #7a6b8b;
+            margin-top: 8px;
+            font-style: italic;
+        }
+
+        /* 表格 */
+        .styled-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 14px 0;
+            font-size: 0.9em;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+        .styled-table thead th {
+            background: var(--accent-grpo);
+            color: white;
+            padding: 12px 10px;
+            font-weight: 700;
+            text-align: center;
+        }
+        .styled-table tbody td {
+            padding: 10px;
+            text-align: center;
+            border-bottom: 1px solid #f0e8da;
+            background: #fffef9;
+        }
+        .styled-table tbody tr:hover td {
+            background: #e3f2fd;
+        }
+        .highlight-positive {
+            background: #d4edda !important;
+            font-weight: 700;
+            color: #1b5e20;
+        }
+        .highlight-negative {
+            background: #f8d7da !important;
+            font-weight: 700;
+            color: #b71c1c;
+        }
+
+        .tip-box {
+            background: #e8f4fd;
+            border: 1px solid #b3d9ff;
+            border-radius: 14px;
+            padding: 16px 20px;
+            margin: 14px 0;
+            font-weight: 500;
+            color: #1a3b5e;
+        }
+        .tip-box strong {
+            color: #0984e3;
+        }
+
+        .step-list {
+            list-style: none;
+            counter-reset: step;
+        }
+        .step-list li {
+            counter-increment: step;
+            position: relative;
+            padding: 12px 0 12px 50px;
+            margin-bottom: 12px;
+            background: #fafbfc;
+            border-radius: 12px;
+            font-weight: 500;
+            border-left: 3px solid var(--accent-grpo-light);
+        }
+        .step-list li::before {
+            content: counter(step);
+            position: absolute;
+            left: 10px;
+            top: 8px;
+            width: 28px;
+            height: 28px;
+            background: var(--accent-grpo);
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 28px;
+            font-weight: 800;
+            font-size: 0.85em;
+        }
+
+        .pseudo-code {
+            background: #2d3436;
+            color: #dfe6e9;
+            border-radius: 14px;
+            padding: 20px 24px;
+            margin: 14px 0;
+            font-family: 'Courier New', 'Fira Code', monospace;
+            font-size: 0.9em;
+            overflow-x: auto;
+            white-space: pre;
+            line-height: 1.6;
+        }
+
+        @media (max-width: 600px) {
+            .hero h1 {
+                font-size: 1.8em;
+            }
+            .card {
+                padding: 18px 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+
+        <!-- 标题 -->
+        <div class="hero">
+            <h1>🏆 GRPO · 组内比武</h1>
+            <p class="subtitle">不要陪练，不设评委——让少侠们自己打一架，谁赢学谁</p>
+        </div>
+
+        <!-- GRPO 诞生背景 -->
+        <div class="card">
+            <h2>📖 缘起：PPO 的“贵族病”与 DPO 的“洁癖”</h2>
+            <p>在 RLHF 的演进之路上，我们遇到了两位前辈：</p>
+            <ul>
+                <li><strong>PPO（四大天王版）</strong>：需要训练一个与策略模型<strong>同等规模</strong>的 Critic（价值模型）。这就像给每个运动员配一个专属教练——成本翻倍，内存爆炸，而且教练水平不够还会帮倒忙（价值估计偏差）。</li>
+                <li><strong>DPO（直接偏好版）</strong>：虽然抛弃了 Critic 和 Reward，但它依赖<strong>静态的偏好数据集</strong>，无法在训练中在线探索新策略，容易“背题库”，分布外泛化能力受限。</li>
+            </ul>
+            <p>于是，DeepSeek 团队在训练数学推理模型时拍案而起：“<strong>能不能只要一个 Actor，自己生成一堆答案，然后内部比个高低，直接学？</strong>”<br>
+            ——<strong>GRPO（Group Relative Policy Optimization，组内相对策略优化）</strong>应运而生。</p>
+            <div class="tip-box">
+                <strong>🍜 灵魂比喻：</strong>PPO 是给每个学生（Actor）配一个家教（Critic）；DPO 是让学生背标准答案；GRPO 是让一群学生做同一道题，然后互相对比：“你这解法妙！”“你这思路歪了！”——<strong>同伴互评，共同进步</strong>。
+            </div>
+        </div>
+
+        <!-- 核心思想 -->
+        <div class="card">
+            <h2>💡 核心思想：组内相对优势——自己当自己的裁判</h2>
+            <p>GRPO 的关键洞察是：<strong>我们并不需要知道一个回答的绝对价值（Critic 做的事），只需要知道它相对于同组其他回答有多好。</strong></p>
+            <p>对于每个提示 $x$，GRPO 让旧策略 $\pi_{\theta_{\text{old}}}$ 独立采样 <strong>$G$ 个回答</strong>（通常 $G=4$ 或 $8$），形成一个“比武小组”。然后用<strong>奖励模型</strong>（是的，GRPO 仍需要奖励模型，但它只需要输出标量分数，不需要和 Actor 一样大！）给这 $G$ 个回答打分：$r_1, r_2, \dots, r_G$。</p>
+            <p>接下来就是 GRPO 的魔法——<strong>组内标准化</strong>：</p>
+            <div class="formula-box">
+                $$ \hat{A}_i = \frac{r_i - \text{mean}(r)}{\text{std}(r)} $$
+            </div>
+            <p>这里 $\hat{A}_i$ 就是第 $i$ 个回答的<strong>优势</strong>。<br>
+                <strong>优势 > 0</strong> → 这个回答比组内平均水平好，值得鼓励；<br>
+                <strong>优势 < 0</strong> → 这个回答拖了小组后腿，需要打压。</p>
+            <p>因为优势完全来自<strong>组内比较</strong>，GRPO 天然消除了奖励模型的绝对分值漂移——哪怕奖励模型给所有回答都打高分，只要组内相对顺序对，训练信号就是准确的。</p>
+            <div class="tip-box">
+                <strong>🔮 优势不来自 Critic，来自“同行衬托”</strong>：这就像考试分数出来，你不需要知道全省平均分，只要知道你在班里排第几，就知道该不该奖励自己一顿火锅。
+            </div>
+        </div>
+
+        <!-- 详细公式 -->
+        <div class="card">
+            <h2>📐 GRPO 的数学之美：从 PPO 到组内优势</h2>
+            <h3>1. 回顾 PPO 的目标</h3>
+            <p>PPO 的裁剪损失（简化）为：</p>
+            <div class="formula-box">
+                $$ \mathcal{L}^{\text{PPO}}(\theta) = \mathbb{E}_t \left[ \min\left( \rho_t A_t, \text{clip}(\rho_t, 1-\epsilon, 1+\epsilon) A_t \right) \right] $$
+            </div>
+            <p>其中 $\rho_t = \frac{\pi_\theta(a_t|s_t)}{\pi_{\theta_{\text{old}}}(a_t|s_t)}$ 是概率比，$A_t$ 是 Critic 估计的优势。</p>
+
+            <h3>2. GRPO 的改造——用组内标准化代替 Critic</h3>
+            <p>GRPO 保留了 PPO 的裁剪机制，但把优势 $A_t$ 替换为基于整句回答的<strong>组内标准化优势</strong>。对于第 $i$ 个回答（包含多个 token），GRPO 定义其优势为：</p>
+            <div class="formula-box">
+                $$ \hat{A}_{i} = \frac{r_i - \text{mean}(\{r_1, ..., r_G\})}{\text{std}(\{r_1, ..., r_G\})} $$
+            </div>
+            <p>然后，这个回答内的<strong>每一个 token 都共享同一个优势</strong> $\hat{A}_i$（即句子级优势，而非 token 级）。策略梯度目标变为：</p>
+            <div class="formula-box">
+                $$ \mathcal{L}^{\text{GRPO}}(\theta) = \mathbb{E}_{x, \{y_i\}_{i=1}^G \sim \pi_{\theta_{\text{old}}}} \left[ \frac{1}{\sum_i |y_i|} \sum_{i=1}^G \sum_{t=1}^{|y_i|} \min\left( \rho_{i,t} \hat{A}_i, \text{clip}(\rho_{i,t}, 1-\epsilon, 1+\epsilon) \hat{A}_i \right) \right] $$
+            </div>
+            <p>这里 $\rho_{i,t} = \frac{\pi_\theta(y_{i,t}|x, y_{i,<t})}{\pi_{\theta_{\text{old}}}(y_{i,t}|x, y_{i,<t})}$ 是第 $i$ 个回答中第 $t$ 个 token 的概率比。</p>
+
+            <h3>3. 别忘了师爷——KL 惩罚的两种加法</h3>
+            <p>为了防止策略跑偏，GRPO 同样需要约束与参考模型 $\pi_{\text{ref}}$ 的 KL 散度。通常有两种做法：</p>
+            <ul>
+                <li><strong>直接加在奖励里：</strong>$r_i^{\text{total}} = r_i - \beta \cdot \text{KL}(\pi_\theta \| \pi_{\text{ref}})$，然后再做组内标准化。</li>
+                <li><strong>作为一个独立的正则项加到损失里：</strong>
+                    $$ \mathcal{L} = \mathcal{L}^{\text{GRPO}} - \gamma \cdot \mathbb{E}_{i,t} \left[ \text{KL}\big(\pi_\theta(\cdot|x,y_{<t}) \| \pi_{\text{ref}}(\cdot|x,y_{<t})\big) \right] $$
+                </li>
+            </ul>
+            <p>两种方式都能让模型在探索新策略时，不至于忘记自己“出身名门”（SFT 的底子）。</p>
+        </div>
+
+        <!-- 生动例子 -->
+        <div class="card">
+            <h2>🍜 实例：夸夸机器人 GRPO 训练现场</h2>
+            <p>Prompt：<strong>“我刚剪了个超丑的发型，求安慰。”</strong></p>
+            <p>旧策略 $\pi_{\theta_{\text{old}}}$ 一口气生成了 $G=4$ 个回答：</p>
+            <table class="styled-table">
+                <thead>
+                    <tr><th>回答编号</th><th>回答内容</th><th>奖励分 $r$</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>🥇 y₁</td>
+                        <td style="text-align:left;">别担心，新发型很衬你！</td>
+                        <td>8.2</td>
+                    </tr>
+                    <tr>
+                        <td>🥈 y₂</td>
+                        <td style="text-align:left;">没事的，我也刚剪残，一起丑</td>
+                        <td>6.8</td>
+                    </tr>
+                    <tr>
+                        <td>🥉 y₃</td>
+                        <td style="text-align:left;">哈哈哈哈哈哈丑哭了</td>
+                        <td>1.5</td>
+                    </tr>
+                    <tr>
+                        <td>4️⃣ y₄</td>
+                        <td style="text-align:left;">换个发型师吧，真的</td>
+                        <td>4.0</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p><strong>组内标准化：</strong>均值 $\mu = (8.2+6.8+1.5+4.0)/4 = 5.125$，标准差 $\sigma \approx 2.56$。</p>
+            <table class="styled-table">
+                <thead><tr><th>回答</th><th>原始奖励 $r$</th><th>优势 $\hat{A} = (r-\mu)/\sigma$</th><th>信号含义</th></tr></thead>
+                <tbody>
+                    <tr><td>y₁</td><td>8.2</td><td class="highlight-positive">+1.20</td><td>👍 明显优秀，鼓励</td></tr>
+                    <tr><td>y₂</td><td>6.8</td><td class="highlight-positive">+0.65</td><td>🙂 还不错，稍微鼓励</td></tr>
+                    <tr><td>y₃</td><td>1.5</td><td class="highlight-negative">-1.42</td><td>👎 垫底，狠狠打压</td></tr>
+                    <tr><td>y₄</td><td>4.0</td><td class="highlight-negative">-0.44</td><td>😐 略低于平均，轻微打压</td></tr>
+                </tbody>
+            </table>
+            <p>然后，GRPO 用这些优势值去更新策略：y₁ 中每个 token 的概率比乘以 +1.20，被裁剪后提上去；y₃ 中每个 token 的概率比乘以 -1.42，被压下来。<strong>没有 Critic 的任何参与，组内对比自动给出了清晰的梯度方向。</strong></p>
+        </div>
+
+        <!-- 算法流程 -->
+        <div class="card">
+            <h2>⚙️ GRPO 训练流程（单步循环）</h2>
+            <ol class="step-list">
+                <li><strong>采样小组：</strong>从一个 batch 的 prompts 中，对每个 prompt $x$，用当前策略 $\pi_{\theta_{\text{old}}}$ 独立采样 $G$ 个回答 $\{y_1, ..., y_G\}$。</li>
+                <li><strong>奖励打分：</strong>用预先训练好的<strong>奖励模型</strong>（Reward Model）为每个 $y_i$ 计算标量奖励 $r_i$。</li>
+                <li><strong>组内标准化：</strong>对每个 prompt 的 $G$ 个奖励，计算均值 $\mu$ 和标准差 $\sigma$，得到优势 $\hat{A}_i = (r_i - \mu)/\sigma$。</li>
+                <li><strong>（可选）加入 KL 惩罚：</strong>可以修改 $r_i$ 减去 KL 散度，或者在损失函数中单独加 KL 正则项。</li>
+                <li><strong>计算概率比：</strong>用当前策略 $\pi_\theta$ 和旧策略 $\pi_{\theta_{\text{old}}}$ 分别计算所有回答中每个 token 的对数概率，得到 $\rho_{i,t}$。</li>
+                <li><strong>构造 GRPO 损失：</strong>
+                    $$ \mathcal{L} = -\frac{1}{\sum_i |y_i|} \sum_{i=1}^G \sum_{t=1}^{|y_i|} \min\left( \rho_{i,t} \hat{A}_i, \text{clip}(\rho_{i,t}, 1-\epsilon, 1+\epsilon) \hat{A}_i \right) + \gamma \cdot \text{KL} $$
+                </li>
+                <li><strong>反向传播更新 $\pi_\theta$：</strong>优化器更新策略参数。旧策略 $\pi_{\theta_{\text{old}}}$ 定期同步为当前策略。</li>
+                <li><strong>重复：</strong>直到策略在组内对比中表现稳定。</li>
+            </ol>
+        </div>
+
+        <!-- 伪代码 -->
+        <div class="card">
+            <h2>💻 伪代码：GRPO 一步更新</h2>
+            <div class="pseudo-code">
+                <code>
+                    # 输入：policy_model (π_θ), ref_model, reward_model, prompts batch
+                    # 超参数：G=4, ε=0.2, β=0.04 (KL系数)
+
+                    # 1. 采样小组
+                    old_policy = policy_model.copy()  # 冻结旧策略
+                    all_responses = []
+                    for prompt in prompts:
+                    responses = old_policy.sample(prompt, num_samples=G)
+                    all_responses.append(responses)
+
+                    # 2. 计算奖励
+                    rewards = reward_model(prompts, all_responses)  # shape: [batch_size, G]
+
+                    # 3. 组内标准化得优势
+                    mean_r = rewards.mean(dim=1, keepdim=True)
+                    std_r = rewards.std(dim=1, keepdim=True) + 1e-8
+                    advantages = (rewards - mean_r) / std_r
+
+                    # 4. 计算概率比和 KL
+                    logp_old = old_policy.log_prob(prompts, all_responses)
+                    logp_ref = ref_model.log_prob(prompts, all_responses)
+                    logp_curr = policy_model.log_prob(prompts, all_responses)
+                    ratio = torch.exp(logp_curr - logp_old)
+                    kl = logp_ref - logp_curr  # 近似 KL
+
+                    # 5. GRPO 损失
+                    surr1 = ratio * advantages.unsqueeze(-1)  # 广播到 token 维度
+                    surr2 = torch.clamp(ratio, 1-ε, 1+ε) * advantages.unsqueeze(-1)
+                    policy_loss = -torch.min(surr1, surr2).mean()
+                    kl_loss = β * kl.mean()
+                    loss = policy_loss + kl_loss
+
+                    # 6. 更新
+                    optimizer.zero_grad()
+                    loss.backward()
+                    optimizer.step()
+                </code>
+            </div>
+            <p class="formula-note">注意：GRPO 完全没有 Critic 网络，优势直接通过组内奖励标准化得到，代码量比 PPO 精简了整整一个 Critic 的部分。</p>
+        </div>
+
+        <!-- 三兄弟对比 -->
+        <div class="card">
+            <h2>⚖️ 三剑客对比：PPO vs DPO vs GRPO</h2>
+            <table class="styled-table">
+                <thead>
+                    <tr><th>维度</th><th>PPO</th><th>DPO</th><th>GRPO</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>需要奖励模型</td><td>✅ 需要</td><td>❌ 不需要</td><td>✅ 需要（但可较小）</td></tr>
+                    <tr><td>需要 Critic 模型</td><td>✅ 需要（与 Actor 等大）</td><td>❌ 不需要</td><td>❌ 不需要</td></tr>
+                    <tr><td>优势来源</td><td>Critic 预测的 $V(s)$</td><td>隐式对比偏好对</td><td>组内奖励标准化</td></tr>
+                    <tr><td>在线探索</td><td>✅ 在线采样</td><td>❌ 纯离线数据</td><td>✅ 在线采样</td></tr>
+                    <tr><td>训练稳定性</td><td>依赖 Critic 质量</td><td>依赖偏好数据覆盖</td><td>组内归一化天然稳定</td></tr>
+                    <tr><td>内存/计算</td><td>高（双模型）</td><td>低</td><td>中（需同时存 G 条路径）</td></tr>
+                    <tr><td>代表论文</td><td>InstructGPT (2022)</td><td>DPO (2023)</td><td>DeepSeekMath (2024)</td></tr>
+                </tbody>
+            </table>
+            <p style="margin-top:12px;">GRPO 站在 PPO 和 DPO 的肩膀上：保留了 PPO 的<strong>在线探索</strong>能力，又像 DPO 一样<strong>不需要 Critic</strong>，同时用组内标准化巧妙地解决了绝对奖励的尺度问题。</p>
+        </div>
+
+        <!-- 终极口诀 -->
+        <div class="card" style="border:3px solid var(--accent-grpo); background: linear-gradient(135deg, #e3f2fd, #fffef9);">
+            <h2>🧘 GRPO 终极心法口诀</h2>
+            <ol style="font-size:1.05em; line-height:2;">
+                <li><strong>旧策略</strong> 对一个 prompt 生成 <strong>$G$ 个回答</strong>（组内比武）</li>
+                <li><strong>奖励模型</strong> 给每个回答打一个总分 $r_i$</li>
+                <li><strong>组内标准化：</strong> $\hat{A}_i = (r_i - \mu)/\sigma$，同行衬托出优势</li>
+                <li>优势 > 0 的<strong>整句回答</strong>，所有 token 一起提概率；优势 < 0 的，一起压概率</li>
+                <li>用 <strong>PPO 裁剪</strong>防止步子太大，加 <strong>KL 惩罚</strong>防止忘了师爷</li>
+                <li><strong>没有 Critic，没有绝对分值依赖</strong>，只有组内相对排名</li>
+                <li>循环迭代，少侠们在互相比拼中集体进化 🚀</li>
+            </ol>
+            <p style="text-align:center; margin-top:14px; font-weight:700; color: var(--accent-grpo);">
+                GRPO = 小组采样 + 组内标准化 + PPO裁剪 → 不需要陪练的强化学习！
+            </p>
+        </div>
+
+        <!-- 页脚 -->
+        <div style="text-align:center; color:#b0a090; font-size:0.85em; padding:10px;">
+            🏆 GRPO：让强化学习回归简单——你只需要一个会打分的人，和一群互相较劲的学生。
+        </div>
+    </div>
+</body>
+</html>

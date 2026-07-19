@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RLHF-PPO 四大天王训练秘籍</title>
+    <!-- MathJax 公式渲染 -->
+    <script>
+        MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            },
+            svg: { fontCache: 'global' }
+        };
+    </script>
+    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+    <style>
+        :root {
+            --bg: #fff9f0;
+            --card-bg: #ffffff;
+            --text: #3a3226;
+            --accent1: #ff6b6b;
+            --accent2: #4ecdc4;
+            --accent3: #ffe66d;
+            --accent4: #a29bfe;
+            --border: #e0d5c7;
+            --shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+            --radius: 20px;
+            --code-bg: #fdf6e3;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            padding: 24px 16px 80px;
+            background-image: radial-gradient(circle at 20% 10%, #fff3e0 0%, transparent 50%),
+                radial-gradient(circle at 80% 90%, #e8f5e9 0%, transparent 50%),
+                radial-gradient(circle at 50% 50%, #fce4ec 0%, transparent 40%);
+            background-attachment: fixed;
+        }
+
+        .container {
+            max-width: 950px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 28px;
+        }
+
+        /* 标题区域 */
+        .hero {
+            text-align: center;
+            padding: 40px 24px 20px;
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 2px dashed var(--accent1);
+            position: relative;
+            overflow: hidden;
+        }
+        .hero::before {
+            content: '🍿';
+            position: absolute;
+            top: -20px;
+            left: 20px;
+            font-size: 48px;
+            opacity: 0.6;
+            animation: float 3s ease-in-out infinite;
+        }
+        .hero::after {
+            content: '🎬';
+            position: absolute;
+            bottom: -15px;
+            right: 25px;
+            font-size: 44px;
+            opacity: 0.6;
+            animation: float 3s ease-in-out 1s infinite;
+        }
+        @keyframes float {
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-14px);
+            }
+        }
+        .hero h1 {
+            font-size: 2.6em;
+            font-weight: 800;
+            background: linear-gradient(135deg, #ff6b6b, #ff8e53, #ff6b6b);
+            background-size: 200% 200%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: gradientShift 4s ease infinite;
+            margin-bottom: 10px;
+        }
+        @keyframes gradientShift {
+            0%,
+            100% {
+                background-position: 0% 50%;
+            }
+            50% {
+                background-position: 100% 50%;
+            }
+        }
+        .hero .subtitle {
+            font-size: 1.15em;
+            color: #7a6e5d;
+            font-weight: 500;
+        }
+
+        /* 卡片通用 */
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 28px 30px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+        }
+        .card h2 {
+            font-size: 1.6em;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .card h3 {
+            font-size: 1.2em;
+            margin: 18px 0 10px;
+            color: #5a4e3e;
+        }
+
+        /* 四大天王网格 */
+        .four-kings {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 18px;
+        }
+        .king-card {
+            background: var(--card-bg);
+            border-radius: 18px;
+            padding: 22px 18px;
+            text-align: center;
+            box-shadow: var(--shadow);
+            border: 2px solid transparent;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        .king-card:hover {
+            transform: scale(1.04);
+            border-color: var(--hover-color, #ccc);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+        }
+        .king-card .emoji {
+            font-size: 3em;
+            display: block;
+            margin-bottom: 8px;
+        }
+        .king-card .name {
+            font-weight: 800;
+            font-size: 1.25em;
+            margin-bottom: 6px;
+        }
+        .king-card .role {
+            font-size: 0.9em;
+            color: #7a6e5d;
+            margin-bottom: 6px;
+        }
+        .king-card .tag {
+            display: inline-block;
+            font-size: 0.75em;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+        .tag-frozen {
+            background: #e3f2fd;
+            color: #1565c0;
+        }
+        .tag-training {
+            background: #fff3e0;
+            color: #e65100;
+            animation: pulse 1.8s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%,
+            100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.6;
+            }
+        }
+
+        /* 流程图 */
+        .flow-section {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 24px 20px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            overflow-x: auto;
+        }
+        .flow-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            min-width: 700px;
+            padding: 10px 0;
+        }
+        .flow-box {
+            background: #fff;
+            border-radius: 14px;
+            padding: 14px 18px;
+            text-align: center;
+            font-weight: 700;
+            font-size: 0.9em;
+            border: 2px solid var(--border);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            white-space: nowrap;
+        }
+        .flow-arrow {
+            font-size: 1.5em;
+            color: #b0a090;
+            font-weight: bold;
+        }
+        .flow-box.actor {
+            border-color: #ff6b6b;
+            background: #fff5f5;
+        }
+        .flow-box.critic {
+            border-color: #4ecdc4;
+            background: #f0fdf9;
+        }
+        .flow-box.reward {
+            border-color: #ffe66d;
+            background: #fffef5;
+        }
+        .flow-box.ref {
+            border-color: #a29bfe;
+            background: #f8f7ff;
+        }
+
+        /* 公式 */
+        .formula-box {
+            background: #fdf8f0;
+            border-radius: 14px;
+            padding: 20px 24px;
+            margin: 14px 0;
+            overflow-x: auto;
+            border-left: 4px solid #ff6b6b;
+            font-size: 1.05em;
+            line-height: 1.8;
+        }
+        .formula-box.critic-formula {
+            border-left-color: #4ecdc4;
+        }
+        .formula-note {
+            font-size: 0.85em;
+            color: #8a7b6b;
+            margin-top: 6px;
+            font-style: italic;
+        }
+
+        /* 代码块 */
+        .code-box {
+            background: #282c34;
+            border-radius: 14px;
+            padding: 20px 24px;
+            margin: 14px 0;
+            overflow-x: auto;
+            border-left: 4px solid #ff6b6b;
+            font-size: 0.9em;
+        }
+        .code-box pre {
+            margin: 0;
+            white-space: pre;
+            font-family: 'Fira Code', 'Cascadia Code', 'JetBrains Mono', 'Courier New', monospace;
+            line-height: 1.6;
+        }
+        .code-box code {
+            font-family: inherit;
+            color: #e6e6e6;
+        }
+        .code-comment { color: #6a9955; }
+        .code-keyword { color: #c586c0; }
+        .code-func { color: #dcdcaa; }
+        .code-var { color: #9cdcfe; }
+        .code-op { color: #d4d4d4; }
+
+        /* 行内代码 */
+        code {
+            background: #fdf6e3;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Fira Code', 'Cascadia Code', 'JetBrains Mono', 'Courier New', monospace;
+            font-size: 0.9em;
+            color: #d63384;
+        }
+
+        /* 表格 */
+        .styled-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 14px 0;
+            font-size: 0.9em;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+        .styled-table thead th {
+            background: #ff6b6b;
+            color: white;
+            padding: 12px 10px;
+            font-weight: 700;
+            text-align: center;
+        }
+        .styled-table tbody td {
+            padding: 10px;
+            text-align: center;
+            border-bottom: 1px solid #f0e8da;
+            background: #fffef9;
+        }
+        .styled-table tbody tr:hover td {
+            background: #fff3e0;
+        }
+        .highlight-positive {
+            background: #d4edda !important;
+            font-weight: 700;
+            color: #1b5e20;
+        }
+        .highlight-negative {
+            background: #f8d7da !important;
+            font-weight: 700;
+            color: #b71c1c;
+        }
+
+        /* 步骤列表 */
+        .step-list {
+            list-style: none;
+            counter-reset: step;
+        }
+        .step-list li {
+            counter-increment: step;
+            position: relative;
+            padding: 10px 0 10px 50px;
+            margin-bottom: 12px;
+            background: #fdfaf5;
+            border-radius: 12px;
+            font-weight: 500;
+        }
+        .step-list li::before {
+            content: counter(step);
+            position: absolute;
+            left: 10px;
+            top: 6px;
+            width: 30px;
+            height: 30px;
+            background: #ff6b6b;
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 30px;
+            font-weight: 800;
+            font-size: 0.85em;
+        }
+
+        /* 提示框 */
+        .tip-box {
+            background: #fffde7;
+            border: 1px solid #ffe082;
+            border-radius: 14px;
+            padding: 16px 20px;
+            margin: 14px 0;
+            font-weight: 500;
+        }
+        .tip-box strong {
+            color: #e65100;
+        }
+
+        /* 响应式 */
+        @media (max-width: 600px) {
+            .hero h1 {
+                font-size: 1.8em;
+            }
+            .card {
+                padding: 18px 14px;
+            }
+            .four-kings {
+                grid-template-columns: 1fr 1fr;
+            }
+            .flow-container {
+                flex-direction: column;
+                gap: 6px;
+                min-width: auto;
+            }
+            .flow-arrow {
+                transform: rotate(90deg);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+
+        <!-- 标题 -->
+        <div class="hero">
+            <h1>🎬 RLHF-PPO 四大天王训练秘籍</h1>
+            <p class="subtitle">从一脸懵到拍大腿——用四个模型、三句话和一碗奶茶，彻底搞懂 PPO</p>
+        </div>
+
+        <!-- 四大天王卡片 -->
+        <div class="card">
+            <h2>👑 先认识四位主演</h2>
+            <p style="margin-bottom:16px;color:#7a6e5d;">在 PPO 这场大戏里，四个模型分工明确、缺一不可。我们给它们起了更接地气的绰号：</p>
+            <div class="four-kings">
+                <div class="king-card" style="--hover-color:#a29bfe;">
+                    <span class="emoji">📜</span>
+                    <div class="name">古板师爷</div>
+                    <div class="role">Reference Model<br>参考模型</div>
+                    <span class="tag tag-frozen">❄️ 永久冻结</span>
+                    <p style="font-size:0.8em;margin-top:8px;">SFT 训练完就冻住，只负责盯着 Actor 别跑偏。</p>
+                </div>
+                <div class="king-card" style="--hover-color:#ff6b6b;">
+                    <span class="emoji">⚔️</span>
+                    <div class="name">修炼少侠</div>
+                    <div class="role">Actor / Policy<br>策略模型</div>
+                    <span class="tag tag-training">🔥 训练中</span>
+                    <p style="font-size:0.8em;margin-top:8px;">从 SFT 热启动，是我们最终要交付的模型。</p>
+                </div>
+                <div class="king-card" style="--hover-color:#ffe66d;">
+                    <span class="emoji">🧐</span>
+                    <div class="name">毒舌评委</div>
+                    <div class="role">Reward Model<br>奖励模型</div>
+                    <span class="tag tag-frozen">❄️ 永久冻结</span>
+                    <p style="font-size:0.8em;margin-top:8px;">提前训好，只给整句话打一个总分。</p>
+                </div>
+                <div class="king-card" style="--hover-color:#4ecdc4;">
+                    <span class="emoji">🔮</span>
+                    <div class="name">金牌陪练</div>
+                    <div class="role">Critic / Value<br>评论家模型</div>
+                    <span class="tag tag-training">🔥 训练中</span>
+                    <p style="font-size:0.8em;margin-top:8px;"><strong>随机初始化</strong>，学会预测未来回报，提供每一步的“预期基准”。</p>
+                </div>
+            </div>
+            <div class="tip-box" style="margin-top:18px;">
+                <strong>💡 关键记忆点：</strong>
+                <ul style="margin:8px 0 0 20px;">
+                    <li><strong>Reference</strong> 和 <strong>Reward</strong> 是提前准备好的“外挂”，PPO 阶段<em>绝不更新</em>。</li>
+                    <li><strong>Actor</strong> 从 SFT 模型<em>热启动</em>（会说话），<strong>Critic</strong> 是<em>随机初始化</em>（白纸一张）。</li>
+                    <li>两者在 PPO 循环里<strong>同步更新</strong>，但用不同的损失函数。</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- 三阶段流水线 -->
+        <div class="card">
+            <h2>🏗️ 严格的三阶段流水线</h2>
+            <p style="color:#7a6e5d;margin-bottom:14px;">不是同时准备，而是<strong>串行执行</strong>，前一阶段的产出是后一阶段的输入：</p>
+            <ol class="step-list">
+                <li><strong>阶段 1 · SFT 监督微调：</strong>用高质量对话数据训练基础模型 → 产出 <strong>SFT 模型</strong>。冻一份当 <strong>Reference（师爷）</strong>。</li>
+                <li><strong>阶段 2 · 训练 Reward Model：</strong>用 SFT 模型生成多个回答，人工排序 → 训练出 <strong>Reward Model（毒舌评委）</strong>。训完冻住。</li>
+                <li><strong>阶段 3 · PPO 强化学习：</strong>Actor（从 SFT 热启动） + Critic（随机初始化） 同台飙戏。Reference 和 Reward 全程旁观不动。</li>
+            </ol>
+        </div>
+
+        <!-- 三句话批量训练实例 -->
+        <div class="card">
+            <h2>🍜 实战案例：训练一个“夸夸机器人”</h2>
+            <p style="color:#7a6e5d;margin-bottom:10px;">
+                Prompt：<strong>“我刚剪了个超丑的发型，求安慰。”</strong><br>
+                为了稳定训练，Actor 对同一个 prompt 生成了 <strong>3 个不同回答</strong>（用不同随机种子采样）：
+            </p>
+            <table class="styled-table">
+                <thead>
+                    <tr>
+                        <th>回答编号</th>
+                        <th>回答内容</th>
+                        <th>毒舌评委打分 R</th>
+                        <th>评价</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>🥇 回答 1</td>
+                        <td style="text-align:left;">别担心，新发型很衬你</td>
+                        <td><strong>8.0</strong></td>
+                        <td>👍 暖心安慰，高分</td>
+                    </tr>
+                    <tr>
+                        <td>🥈 回答 2</td>
+                        <td style="text-align:left;">哈哈哈哈哈哈丑哭了</td>
+                        <td><strong>1.2</strong></td>
+                        <td>👎 补刀嘲讽，低分</td>
+                    </tr>
+                    <tr>
+                        <td>🥉 回答 3</td>
+                        <td style="text-align:left;">没事的，我也刚剪残，一起丑</td>
+                        <td><strong>6.5</strong></td>
+                        <td>🤝 共情安慰，及格</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p style="color:#7a6e5d;font-size:0.9em;">下面我们聚焦 <strong>回答 1</strong>，看它每个 token 的“细账”是怎么算的。</p>
+        </div>
+
+        <!-- 回答1的Token级细账 -->
+        <div class="card">
+            <h2>🔍 回答 1 Token 级拆解：别担心，新发型很衬你</h2>
+            <p style="color:#7a6e5d;">每一步都包含：<strong>Critic 预测值 V(t)</strong>、<strong>实际回报 G(t)</strong>、以及两者之差 <strong>优势 A(t)=G-V</strong>。</p>
+            <table class="styled-table">
+                <thead>
+                    <tr>
+                        <th>时间步 t</th>
+                        <th>前缀 (state)</th>
+                        <th>动作 (token)</th>
+                        <th>Critic 预测 V(t)</th>
+                        <th>实际回报 G(t)</th>
+                        <th>优势 A(t) = G-V</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>1</td>
+                        <td style="text-align:left;">[BOS]</td>
+                        <td>“别”</td>
+                        <td>2.5</td>
+                        <td>7.82</td>
+                        <td class="highlight-positive">+5.32</td>
+                    </tr>
+                    <tr>
+                        <td>4</td>
+                        <td style="text-align:left;">[BOS] 别担心</td>
+                        <td>“，”</td>
+                        <td>3.2</td>
+                        <td>7.86</td>
+                        <td class="highlight-positive">+4.66</td>
+                    </tr>
+                    <tr>
+                        <td>8</td>
+                        <td style="text-align:left;">[BOS] 别担心，新发型</td>
+                        <td>“很”</td>
+                        <td>5.2</td>
+                        <td>7.93</td>
+                        <td class="highlight-positive">+2.73</td>
+                    </tr>
+                    <tr style="background:#fffde7;">
+                        <td><strong>9</strong></td>
+                        <td style="text-align:left;">[BOS] 别担心，新发型很</td>
+                        <td><strong>“衬”</strong></td>
+                        <td><strong>3.5</strong></td>
+                        <td><strong>7.94</strong></td>
+                        <td class="highlight-positive"><strong>+4.44 🚀</strong></td>
+                    </tr>
+                    <tr>
+                        <td>10</td>
+                        <td style="text-align:left;">[BOS] 别担心，新发型很衬</td>
+                        <td>“你”</td>
+                        <td>6.0</td>
+                        <td>7.98</td>
+                        <td class="highlight-positive">+1.98</td>
+                    </tr>
+                    <tr>
+                        <td>11</td>
+                        <td style="text-align:left;">[BOS] 别担心，新发型很衬你</td>
+                        <td>[EOS]</td>
+                        <td>—</td>
+                        <td>7.99</td>
+                        <td>—</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="tip-box">
+                <strong>🔮 V(t) 是哪来的？</strong> 把“前缀”送入 <strong>Critic 神经网络</strong>做一次前向传播，它就输出一个标量——这就是 V(t)。<br>
+                <strong>📊 G(t) 是哪来的？</strong> 每步奖励 r_t = KL惩罚 + 最后一步加上评委总分 8.0，然后从后往前累加：G(t) = r_t + G(t+1)。<br>
+                <strong>⚡ 关键洞察：</strong>t=9 时，Critic 看到“新发型很”以为后面只能拿 3.5 分，结果“衬”字一出，实际回报 7.94 → 优势 <strong>+4.44</strong>，巨大的惊喜！这个 token 必须被狠狠鼓励。
+            </div>
+        </div>
+
+        <!-- 回答2的Token级细账 -->
+        <div class="card">
+            <h2>💀 回答 2 Token 级拆解：哈哈哈哈哈哈丑哭了</h2>
+            <p style="color:#7a6e5d;">低分回答的每一步优势基本都是负数——因为实际回报远低于 Critic 的预期。</p>
+            <table class="styled-table">
+                <thead>
+                    <tr>
+                        <th>时间步 t</th>
+                        <th>动作 (token)</th>
+                        <th>Critic 预测 V(t)</th>
+                        <th>实际回报 G(t)</th>
+                        <th>优势 A(t) = G-V</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>1</td>
+                        <td>“哈”</td>
+                        <td>5.0</td>
+                        <td>1.30</td>
+                        <td class="highlight-negative">-3.70</td>
+                    </tr>
+                    <tr style="background:#fff5f5;">
+                        <td><strong>7</strong></td>
+                        <td><strong>“丑”</strong></td>
+                        <td><strong>4.2</strong></td>
+                        <td><strong>1.25</strong></td>
+                        <td class="highlight-negative"><strong>-2.95 💀</strong></td>
+                    </tr>
+                    <tr>
+                        <td>9</td>
+                        <td>“了”</td>
+                        <td>2.8</td>
+                        <td>1.31</td>
+                        <td class="highlight-negative">-1.49</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="tip-box">
+                <strong>👎 负优势的惩罚：</strong>Critic 一开始预测这轮能拿 5.0 分，结果“哈哈哈”一路雪崩到 1.2 分。每一步优势都是负的，Actor 收到信号：<em>“下次安慰人千万别哈哈哈，那是作死！”</em>
+            </div>
+        </div>
+
+        <!-- 核心公式 -->
+        <div class="card">
+            <h2>📐 核心数学公式（别怕，都是纸老虎）</h2>
+
+            <h3>🎯 每步奖励 $r_t$ 的构成</h3>
+            <div class="formula-box">
+                $$ r_t = \underbrace{-\beta \cdot \log \frac{\pi_\theta(a_t \mid s_t)}{\pi_{\text{ref}}(a_t \mid s_t)}}_{\text{KL 惩罚，每步都有}} \;+\; \underbrace{R_{\text{reward}}(x, y)}_{\text{仅最后一步 } t=T \text{ 加上评委总分}} $$
+            </div>
+            <p class="formula-note">🧾 解释：每一步只要偏离师爷的写法就扣 KL 税；句子结束再把毒舌评委的分数加上去。</p>
+
+            <h3>📈 折扣回报 $G(t)$ —— 从后往前累加</h3>
+            <div class="formula-box">
+                $$ G_t = r_t + \gamma \cdot r_{t+1} + \gamma^2 \cdot r_{t+2} + \cdots + \gamma^{T-t} \cdot r_T $$
+                <br>
+                简化（$\gamma = 1$）：$$ G_t = r_t + G_{t+1} \quad \text{（从最后一个时间步倒着算）} $$
+            </div>
+            <p class="formula-note">🧾 解释：不是模型预测的，是拿真实的奖励信号用计算器从后往前加出来的。</p>
+
+            <h3>⚡ 优势 $A(t)$ —— PPO 的灵魂</h3>
+            <div class="formula-box">
+                $$ A_t = G_t - V_\varphi(s_t) $$
+                其中 $V_\varphi(s_t)$ 是 Critic 对前缀 $s_t$ 的预测值
+            </div>
+            <p class="formula-note">🧾 解释：<strong>不是 R 和 V 比，而是 G（里面藏着 R）和 V 比。</strong>优势 > 0 表示这一步比预期好，该鼓励；优势 < 0 表示比预期差，该打压。</p>
+
+            <h3>🎭 PPO Clip 更新 Actor</h3>
+            <div class="formula-box">
+                $$ L^{\text{CLIP}}(\theta) = \mathbb{E}_t \left[ \min \left( \rho_t \cdot A_t \;,\; \text{clip}(\rho_t, 1-\varepsilon, 1+\varepsilon) \cdot A_t \right) \right] $$
+                其中 $\rho_t = \dfrac{\pi_\theta(a_t \mid s_t)}{\pi_{\theta_{\text{old}}}(a_t \mid s_t)}$（新旧策略概率比）
+            </div>
+            <p class="formula-note">🧾 解释：优势正就提高该 token 的概率（但别太猛，用 clip 限幅）；优势负就降低概率。梯度反向传播自动完成。</p>
+
+            <h3>🔮 Critic 更新 —— 用 MSE 逼近真实回报</h3>
+            <div class="formula-box critic-formula">
+                $$ L^{\text{VF}}(\varphi) = \mathbb{E}_t \left[ \left( V_\varphi(s_t) - G_t \right)^2 \right] $$
+            </div>
+            <p class="formula-note">🧾 解释：让 Critic 的预测越来越准，下次遇到类似前缀能给出更靠谱的预期基准。</p>
+        </div>
+
+        <!-- 批量更新流程 -->
+        <div class="card">
+            <h2>🔄 三句话如何“批量更新”模型</h2>
+            <p style="color:#7a6e5d;margin-bottom:12px;">把 3 个回答的所有 token 的优势、概率比等数据<strong>拼成一个大数组</strong>，求平均损失，一次反向传播：</p>
+            <div class="formula-box">
+                $$ L_{\text{actor}} = \frac{1}{N} \sum_{i=1}^{N} L^{\text{CLIP}}_i \qquad L_{\text{critic}} = \frac{1}{N} \sum_{i=1}^{N} \left( V_i - G_i \right)^2 $$
+            </div>
+            <p style="color:#7a6e5d;">然后分别调用 <code>L_actor.backward()</code> 和 <code>L_critic.backward()</code>，优化器各走一步。</p>
+            <div class="tip-box">
+                <strong>🍜 灵魂比喻：厨师看综合报告调整菜谱</strong><br>
+                你同时做了三道菜：芝士龙虾（9.5分）、香菜榴莲炖排骨（1.0分）、番茄炒蛋（6.0分）。品鉴团给每一道菜的<strong>每一个步骤</strong>都写了评价。你把所有评价订成一本册子统一研读，于是：
+                <ul style="margin:8px 0 0 20px;">
+                    <li>“下芝士” → 刻进肌肉记忆（提高概率）</li>
+                    <li>“开局放香菜” → 终身禁忌（降低概率）</li>
+                </ul>
+                这就是批量更新：汇集多条轨迹的经验，求平均方向，稳步进化。
+            </div>
+        </div>
+
+        <!-- 完整流程图 -->
+        <div class="flow-section">
+            <h2 style="margin-bottom:16px;">🗺️ PPO 完整数据流（单次循环）</h2>
+            <div class="flow-container">
+                <div class="flow-box actor">⚔️ Actor<br>生成回答 y</div>
+                <span class="flow-arrow">→</span>
+                <div class="flow-box ref">📜 Reference<br>算 KL 惩罚</div>
+                <span class="flow-arrow">→</span>
+                <div class="flow-box reward">🧐 Reward<br>给总分 R</div>
+                <span class="flow-arrow">→</span>
+                <div class="flow-box" style="background:#f0f0f0;">📊 合并得<br>每步奖励 r_t</div>
+                <span class="flow-arrow">→</span>
+                <div class="flow-box" style="background:#f0f0f0;">📈 倒序累加<br>得回报 G_t</div>
+                <span class="flow-arrow">→</span>
+                <div class="flow-box critic">🔮 Critic<br>预测 V(t)</div>
+                <span class="flow-arrow">→</span>
+                <div class="flow-box" style="background:#ffeaa7;font-weight:800;">⚡ $A(t)=G-V$</div>
+                <span class="flow-arrow">→</span>
+                <div class="flow-box actor">⬆️ 更新 Actor<br>PPO Clip</div>
+                <span class="flow-arrow">+</span>
+                <div class="flow-box critic">⬆️ 更新 Critic<br>MSE(V,G)</div>
+            </div>
+            <p style="text-align:center;margin-top:14px;color:#7a6e5d;font-size:0.9em;">Reference 和 Reward 全程冻住 ❄️，只有 Actor 和 Critic 的参数被更新 🔥</p>
+        </div>
+
+        <!-- 终极心法口诀 -->
+        <div class="card" style="border:3px solid #ff6b6b;background:linear-gradient(135deg,#fff5f5,#fffef9);">
+            <h2>🧘 终极心法口诀（背下来就通了）</h2>
+            <ol style="font-size:1.05em;line-height:2;">
+                <li><strong>SFT 模型</strong> → 冻一份当 <strong>Reference（师爷）</strong></li>
+                <li>用 SFT 生成回答 + 人工排序 → 训练 <strong>Reward Model（毒舌评委）</strong>，冻住</li>
+                <li><strong>Actor（少侠）</strong> 从 SFT 热启动，<strong>Critic（陪练）</strong> 随机初始化</li>
+                <li>Actor 生成回答，Reward 打总分 $R$，Reference 算 KL 惩罚</li>
+                <li>合并得每步奖励 $r_t$ → 倒序累加得 <strong>实际回报 $G(t)$</strong></li>
+                <li>Critic 对每个前缀输出 <strong>预测值 $V(t)$</strong></li>
+                <li><strong>优势 $A(t) = G(t) - V(t)$</strong>（不是 R 和 V 比！）</li>
+                <li>Actor 用 <strong>PPO Clip</strong> 更新（正优势提概率，负优势压概率）</li>
+                <li>Critic 用 <strong>$\mathrm{MSE}(V, G)$</strong> 更新（让预言越来越准）</li>
+                <li>循环往复，直到少侠成为既贴心又不忘本的夸夸大师 🎉</li>
+            </ol>
+        </div>
+
+        <!-- 页脚 -->
+        <div style="text-align:center;color:#b0a090;font-size:0.85em;padding:10px;">
+            🍿 恭喜你掌握了 RLHF-PPO 的内功心法！下次看论文可以拍着大腿说：“这不就是带着实时估值功能的奶茶店运营学嘛！”
+        </div>
+
+    </div>
+</body>
+</html>
