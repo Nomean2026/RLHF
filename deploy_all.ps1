@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   GitHub Pages 通用部署脚本 (PowerShell版) - 新手友好版
   复制到任意文件夹，右键"使用 PowerShell 运行"
@@ -469,6 +469,52 @@ function Copy-DeployFiles {
 }
 
 # ═══════════════════════════════════════════════
+#  ─── 扫描当前文件夹，生成 project.json ───
+#  project.json 记录了项目地址(repo)与项目结构(tree)，
+#  index.html 优先读取它（没有时才回退 GitHub API）
+# ═══════════════════════════════════════════════
+function Get-DeployTree {
+    # 与 Copy-DeployFiles 保持一致的排除规则（额外排除 project.json 自身）
+    $excludeNames = @(".git", "deploy.ps1", "deploy.bat", "push_err.txt", $CONFIG_FILE, "project.json") + $DEPLOY_EXCLUDE_NAMES
+    $entries = [System.Collections.Generic.List[object]]::new()
+    $all = Get-ChildItem -LiteralPath $FOLDER -Recurse -Force -ErrorAction SilentlyContinue
+    foreach ($item in $all) {
+        if ($item.LinkType) { continue }
+        # 兼容旧版 .NET Framework（无 GetRelativePath）：手动算相对路径
+        $rel = ($item.FullName.Substring($FOLDER.Length) -replace '^[\\/]+', '').Replace('\', '/')
+        $skip = $false
+        foreach ($seg in $rel.Split('/')) {
+            if ($seg -in $excludeNames -or
+                $seg -like "*.ps1" -or
+                ($DEPLOY_EXCLUDE_PATTERNS | Where-Object { $seg -like $_ })) {
+                $skip = $true
+                break
+            }
+        }
+        if ($skip) { continue }
+        if ($item.PSIsContainer) { $entries.Add(@{ type = "dir"; path = $rel }) }
+        else { $entries.Add(@{ type = "file"; path = $rel }) }
+    }
+    return $entries
+}
+
+function New-ProjectJson {
+    param([string]$Mode, [string]$RepoUrl)
+    $tree = Get-DeployTree
+    $payload = @{
+        mode = $Mode
+        gh_user = $GH_USER
+        repo = $RepoUrl
+        generated_at = (Get-Date).ToString("yyyy-MM-ddTHH:mm:sszzz")
+        tree = $tree
+    }
+    $json = $payload | ConvertTo-Json -Depth 10
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText((Join-Path $FOLDER "project.json"), $json, $utf8NoBom)
+    Write-Host ("📄 已生成 project.json · 仓库: {0} · 共 {1} 项" -f $RepoUrl, $tree.Count) -ForegroundColor Cyan
+}
+
+# ═══════════════════════════════════════════════
 #  ─── 通用 Push（重试 + 冲突处理） ───
 # ═══════════════════════════════════════════════
 function Push-Git {
@@ -594,6 +640,8 @@ if ($PushOnly) {
 
     # ── 模式一：独立仓库 PushOnly ──
     if ($DEPLOY_MODE -eq "repo") {
+        # 重新生成 project.json（项目结构可能已变化，仓库地址不变）
+        New-ProjectJson -Mode "repo" -RepoUrl "https://github.com/${GH_USER}/${REPO_NAME}"
         $hasChanges = git status --porcelain | Out-String
         if (-not [string]::IsNullOrWhiteSpace($hasChanges)) {
             git add .
@@ -645,6 +693,7 @@ if ($PushOnly) {
             }
 
             Write-Host "📋 复制文件到子目录 /$SUBFOLDER/ ..." -ForegroundColor Yellow
+            New-ProjectJson -Mode "subfolder" -RepoUrl "https://github.com/${GH_USER}/${REPO_NAME}/tree/${BRANCH}/${SUBFOLDER}"
             Copy-DeployFiles -TargetDir $targetDir
 
             Set-Location $tmpDir
@@ -791,7 +840,7 @@ if ($DEPLOY_MODE -eq "repo") {
     }
 
     # .gitignore
-    $ignoreItems = @(".git", "deploy.bat", "deploy.ps1", "push_err.txt", $CONFIG_FILE) + $DEPLOY_EXCLUDE_NAMES
+    $ignoreItems = @(".git", "*.ps1", "deploy.bat", "push_err.txt", $CONFIG_FILE) + $DEPLOY_EXCLUDE_NAMES
     if (-not (Test-Path ".gitignore")) {
         $ignoreItems | Set-Content ".gitignore"
     } else {
@@ -800,6 +849,7 @@ if ($DEPLOY_MODE -eq "repo") {
     }
 
     Write-Host "📝 暂存 & 提交代码..." -ForegroundColor Yellow
+    New-ProjectJson -Mode "repo" -RepoUrl "https://github.com/${GH_USER}/${REPO_NAME}"
     git add .
     $commitMsg = "Deploy: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
     git commit -m $commitMsg 2>$null
@@ -867,6 +917,7 @@ if ($DEPLOY_MODE -eq "subfolder") {
         }
 
         Write-Host "📋 复制当前文件到主仓库子目录 /$SUBFOLDER/ ..." -ForegroundColor Yellow
+        New-ProjectJson -Mode "subfolder" -RepoUrl "https://github.com/${GH_USER}/${REPO_NAME}/tree/${BRANCH}/${SUBFOLDER}"
         Copy-DeployFiles -TargetDir $targetDir
         Write-Host "✅ 复制完成" -ForegroundColor Green
 

@@ -1,0 +1,128 @@
+{
+  "generated_at": "2026-08-12T22:21:33+08:00",
+  "tree": [
+    {
+      "type": "dir",
+      "path": ".mimocode"
+    },
+    {
+      "type": "dir",
+      "path": "数学知识"
+    },
+    {
+      "type": "file",
+      "path": ".gitignore"
+    },
+    {
+      "type": "file",
+      "path": "1_DPO.html"
+    },
+    {
+      "type": "file",
+      "path": "1_GRPO.html"
+    },
+    {
+      "type": "file",
+      "path": "1_PPO.html"
+    },
+    {
+      "type": "file",
+      "path": "1_SFT.html"
+    },
+    {
+      "type": "file",
+      "path": "2_DPO.html"
+    },
+    {
+      "type": "file",
+      "path": "2_GRPO.html"
+    },
+    {
+      "type": "file",
+      "path": "2_PPO.html"
+    },
+    {
+      "type": "file",
+      "path": "2_SFT.html"
+    },
+    {
+      "type": "file",
+      "path": "资料链接.md"
+    },
+    {
+      "type": "file",
+      "path": "dpo_Luxun.py"
+    },
+    {
+      "type": "file",
+      "path": "grop_luxun.py"
+    },
+    {
+      "type": "file",
+      "path": "index.html"
+    },
+    {
+      "type": "file",
+      "path": "ppo_luxun.py"
+    },
+    {
+      "type": "file",
+      "path": "RLHF.html"
+    },
+    {
+      "type": "file",
+      "path": "sft_luxun.py"
+    },
+    {
+      "type": "dir",
+      "path": ".mimocode/skills"
+    },
+    {
+      "type": "dir",
+      "path": ".mimocode/skills/html-tutorial"
+    },
+    {
+      "type": "file",
+      "path": ".mimocode/skills/html-tutorial/SKILL.md"
+    },
+    {
+      "type": "file",
+      "path": "数学知识/豆包 - 极大似然讲解.md"
+    },
+    {
+      "type": "file",
+      "path": "数学知识/豆包 - 模型来源、原理及与DPO的关系.md"
+    },
+    {
+      "type": "file",
+      "path": "数学知识/豆包 - 最优损失.md"
+    },
+    {
+      "type": "file",
+      "path": "数学知识/似然函数详解.md"
+    },
+    {
+      "type": "file",
+      "path": "数学知识/似然和概率.html"
+    },
+    {
+      "type": "file",
+      "path": "数学知识/我的学习方式prompt模板.md"
+    },
+    {
+      "type": "file",
+      "path": "数学知识/deep-compare-learn-skill.md"
+    },
+    {
+      "type": "file",
+      "path": "数学知识/DeepSeek - 概率似然与DPO详解.md"
+    },
+    {
+      "type": "file",
+      "path": "数学知识/DeepSeek - RLHF训练详解与代码讲解.md"
+    }
+  ],
+  "repo": "https://github.com/Nomean2026/RLHF",
+  "mode": "repo",
+  "gh_user": "Nomean2026"
+}
